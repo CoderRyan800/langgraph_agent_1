@@ -96,3 +96,20 @@ for event in agent.chat("hi! I'm bob"):
 for event in agent.chat("what's my name?"):
     print_update(event)
 
+
+for event in agent.chat("i like the celtics!"):
+    print_update(event)
+
+for event in agent.chat("i like how much they win"):
+    print_update(event)
+
+for event in agent.chat("what's my name?"):
+    print_update(event)
+
+for event in agent.chat("what NFL team do you think I like?"):
+    print_update(event)
+
+for event in agent.chat("i like the patriots!"):
+    print_update(event)
+
+
