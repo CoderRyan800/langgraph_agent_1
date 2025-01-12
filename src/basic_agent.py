@@ -19,7 +19,7 @@ class State(MessagesState):
     summary: str
 
 class BasicAgent:
-    def __init__(self, model_name="gpt-4", temperature=0, messages_before_summary=6):
+    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=6):
         self.memory = MemorySaver()
         self.model = ChatOpenAI(model=model_name, temperature=temperature)
         self.messages_before_summary = messages_before_summary
@@ -86,30 +86,24 @@ class BasicAgent:
         input_message = HumanMessage(content=message)
         return self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
 
+    def conversation(self, message: str, config: dict = None):
+        for event in self.chat(message, config):
+            print_update(event)
 
 agent = BasicAgent()
 
 # Chat with the agent
-for event in agent.chat("hi! I'm bob"):
-    print_update(event)
 
-for event in agent.chat("what's my name?"):
-    print_update(event)
+conversation_items = [
+    "hi! I'm bob",
+    "what's my name?",
+    "i like the celtics!",
+    "i like how much they win",
+    "what's my name?",
+    "which NFL team do you think I like?",
+    "i like the patriots!"
+]
 
-
-for event in agent.chat("i like the celtics!"):
-    print_update(event)
-
-for event in agent.chat("i like how much they win"):
-    print_update(event)
-
-for event in agent.chat("what's my name?"):
-    print_update(event)
-
-for event in agent.chat("what NFL team do you think I like?"):
-    print_update(event)
-
-for event in agent.chat("i like the patriots!"):
-    print_update(event)
-
+for item in conversation_items:
+    agent.conversation(item)
 
