@@ -1,3 +1,4 @@
 langchain[all]
 langgraph
 openai
+chromadb
