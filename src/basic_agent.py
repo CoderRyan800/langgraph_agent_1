@@ -170,9 +170,12 @@ class AgentManager:
         
         response_text = ""
         for event in response_generator:
-            if "response_text" in event:
-                response_text += event["response_text"]  # Concatenate streamed responses
-
+            # Check if the event contains a conversation with messages
+            if "conversation" in event and "messages" in event["conversation"]:
+                for msg in event["conversation"]["messages"]:
+                    # Ensure the message object has 'content' and extract it
+                    if hasattr(msg, "content"):
+                        response_text += msg.content  # Append AIMessage content
         # Step 6: Store interaction in mandatory memory
         # Store the user message
         mandatory_db.add(
@@ -192,8 +195,8 @@ class AgentManager:
         # Step 7: Return the AI's response
         return response_text    
     def conversation(self, message: str, config: dict = None):
-        for event in self.chat(message, config):
-            print_update(event)
+        response = self.chat(message, config)
+        print("\nMessage: {}\nResponse: {}\n".format(message, response))
 
 agent = AgentManager()
 
