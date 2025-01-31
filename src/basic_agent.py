@@ -107,11 +107,13 @@ class AgentManager:
         summary = state.get("summary", "")
         if summary:
             summary_message = (
-                f"This is summary of the conversation to date: {summary}\n\n"
-                "Extend the summary by taking into account the new messages above:"
+                f"This is a summary of the conversation so far: {summary}\n\n"
+                "Update this summary by incorporating the key facts from the latest messages, ensuring that important details such as names, preferences, and user opinions are preserved. Do not lose established facts."
             )
         else:
-            summary_message = "Create a summary of the conversation above:"
+            summary_message = (
+                "Create a concise but factually accurate summary of the conversation above, making sure to retain any key facts such as names, preferences, and opinions."
+            )
 
         messages = state["messages"] + [HumanMessage(content=summary_message)]
         response = self.model.invoke(messages)
