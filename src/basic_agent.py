@@ -1,6 +1,6 @@
 from typing import Literal
 import openai
-
+from pathlib import Path
 from openai import OpenAI
 from datetime import datetime
 from langchain.chat_models import ChatOpenAI
@@ -102,11 +102,23 @@ class AgentManager:
 
     def _call_model(self, state: State):
         summary = state.get("summary", "")
+        # Create a working copy of the messages list
+        messages = state["messages"].copy()
+        
+        # Load the custom system message based on the current thread_id (if available)
+        if hasattr(self, "current_thread_id"):
+            custom_system_message = self.load_system_message(self.current_thread_id)
+            if custom_system_message:
+                # Prepend the custom system message to the conversation
+                messages.insert(0, SystemMessage(content=custom_system_message))
+        
+        # If there's a summary, add it as an additional system message.
         if summary:
-            system_message = f"Summary of conversation earlier: {summary}"
-            messages = [SystemMessage(content=system_message)] + state["messages"]
-        else:
-            messages = state["messages"]
+            summary_message = f"Summary of conversation earlier: {summary}"
+            # Insert it after the custom system message, or at the beginning if no custom message exists.
+            insert_index = 1 if hasattr(self, "current_thread_id") and custom_system_message else 0
+            messages.insert(insert_index, SystemMessage(content=summary_message))
+        
         response = self.model.invoke(messages)
         return {"messages": [response]}
 
@@ -156,6 +168,25 @@ class AgentManager:
 
         return workflow.compile(checkpointer=self.memory)
 
+    def load_system_message(self, thread_id: str) -> str:
+        """
+        Load the system message text from a file based on the thread_id.
+        The filename is assumed to be in the format: system_messages/system_{thread_id}.txt
+        """
+        # Resolve the current file's directory (assuming it's in <repo_root>/src)
+        current_dir = Path(__file__).resolve().parent
+        # Get the repository root by navigating up one directory
+        repo_root = current_dir.parent
+        # Construct the path to the system message file
+        filename = repo_root / "system_messages" / f"system_{thread_id}.txt"
+
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception as e:
+            print(f"Could not load system message file for thread {thread_id}: {e}")
+            return ""
+
     def update_vector_memory(self, thread_id, messages, turns=5):
         """
         Update the vector memory store by aggregating the last `turns` conversation
@@ -188,6 +219,7 @@ class AgentManager:
             config = {"configurable": {"thread_id": "default"}}
         
         thread_id = config["configurable"]["thread_id"]
+        self.current_thread_id = thread_id  # Save the current thread_id for later use
 
         # Step 1: Initialize the mandatory memory database
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
