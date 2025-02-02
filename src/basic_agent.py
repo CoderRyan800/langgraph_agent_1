@@ -1,5 +1,8 @@
 from typing import Literal
 import openai
+
+from openai import OpenAI
+from datetime import datetime
 from langchain.chat_models import ChatOpenAI
 from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -8,7 +11,7 @@ from langgraph.graph import MessagesState, StateGraph, START, END
 def print_update(update):
     for k, v in update.items():
         for m in v["messages"]:
-            m.pretty_print()
+            m.pretty_print()    
         if "summary" in v:
             print(v["summary"])
 
@@ -45,7 +48,6 @@ class OpenAIEmbedding:
         """
         self.model = model
 
-from openai import OpenAI
 
 class OpenAIEmbedding:
     """
@@ -165,12 +167,14 @@ class AgentManager:
         # Extract the sliding window chunk from the conversation history
         chunk = get_sliding_window_chunk(messages, turns)
         # Aggregate the chunk into a single text string
-        chunk_text = aggregate_chunk(chunk)
+        aggregated_text = aggregate_chunk(chunk)
+        # Prepend the current UTC timestamp in ISO format followed by a colon
+        chunk_text = f"{datetime.utcnow().isoformat()}: {aggregated_text}"
         # Generate the embedding for the aggregated text
         chunk_embedding = self.embedder.embed(chunk_text)
         
         # Create a unique ID for this memory chunk; here we use the length of the message list
-        unique_id = f"{thread_id}_chunk_{len(messages)}"
+        unique_id = f"{thread_id}_chunk_{datetime.utcnow().isoformat()}"
         
         # Save the chunk to the vector DB
         mandatory_db.add(
