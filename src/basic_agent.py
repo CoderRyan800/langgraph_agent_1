@@ -1,7 +1,7 @@
 from typing import Literal
 import openai
 from langchain.chat_models import ChatOpenAI
-from langchain_core.messages import SystemMessage, RemoveMessage
+from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import MessagesState, StateGraph, START, END
 
@@ -12,14 +12,26 @@ def print_update(update):
         if "summary" in v:
             print(v["summary"])
 
-from langchain_core.messages import HumanMessage
 # We will add a `summary` attribute (in addition to `messages` key,
 # which MessagesState already has)
 class State(MessagesState):
     summary: str
 from chroma_db_manager import ChromaDBManager  # Import the ChromaDBManager class
 
-import openai
+def get_sliding_window_chunk(messages, turns=5):
+    """
+    Extract the last `turns` pairs of messages (assumes one human message
+    followed by one AI response per turn). If there are fewer messages than
+    required, return the entire list.
+    """
+    num_messages_per_chunk = turns * 2  # each turn = human + AI message
+    return messages[-num_messages_per_chunk:] if len(messages) >= num_messages_per_chunk else messages
+
+def aggregate_chunk(chunk):
+    """
+    Combine the content of the messages in the chunk into a single string.
+    """
+    return "\n".join([msg.content for msg in chunk])
 
 class OpenAIEmbedding:
     """
@@ -142,6 +154,31 @@ class AgentManager:
 
         return workflow.compile(checkpointer=self.memory)
 
+    def update_vector_memory(self, thread_id, messages, turns=5):
+        """
+        Update the vector memory store by aggregating the last `turns` conversation
+        pairs into one chunk, embedding it, and saving it to the vector DB.
+        """
+        # Get the mandatory DB instance
+        mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
+        
+        # Extract the sliding window chunk from the conversation history
+        chunk = get_sliding_window_chunk(messages, turns)
+        # Aggregate the chunk into a single text string
+        chunk_text = aggregate_chunk(chunk)
+        # Generate the embedding for the aggregated text
+        chunk_embedding = self.embedder.embed(chunk_text)
+        
+        # Create a unique ID for this memory chunk; here we use the length of the message list
+        unique_id = f"{thread_id}_chunk_{len(messages)}"
+        
+        # Save the chunk to the vector DB
+        mandatory_db.add(
+            documents=[chunk_text],
+            embeddings=[chunk_embedding],
+            ids=[unique_id]
+        )
+
     def chat(self, message: str, config: dict = None):
         if config is None:
             config = {"configurable": {"thread_id": "default"}}
@@ -178,21 +215,22 @@ class AgentManager:
                     # Ensure the message object has 'content' and extract it
                     if hasattr(msg, "content"):
                         response_text += msg.content  # Append AIMessage content
-        # Step 6: Store interaction in mandatory memory
-        # Store the user message
-        mandatory_db.add(
-            documents=[message],
-            embeddings=[query_embedding],
-            ids=[f"{thread_id}_user_message_{len(relevant_memory)}"]
-        )
 
-        # Store the AI response
-        response_embedding = self.embedder.embed(response_text)
-        mandatory_db.add(
-            documents=[response_text],
-            embeddings=[response_embedding],
-            ids=[f"{thread_id}_ai_response_{len(relevant_memory)}"]
-        )
+        # Step 6: Update vector memory with the latest conversation chunk
+        # (Instead of storing the user message and AI response separately)
+
+        # Initialize or retrieve the conversation history list on the AgentManager
+        if not hasattr(self, "conversation_history"):
+            self.conversation_history = []
+
+        # Append the new messages to the conversation history.
+        # (Assuming HumanMessage and SystemMessage are the types you use.)
+        self.conversation_history.append(HumanMessage(content=message))
+        self.conversation_history.append(AIMessage(content=response_text))
+
+        # Now update the vector memory using a sliding window over the last K turns
+        # (For example, turns=5 means the last 10 messages will be aggregated.)
+        self.update_vector_memory(thread_id, self.conversation_history, turns=5)
 
         # Step 7: Return the AI's response
         return response_text    
