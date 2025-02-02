@@ -1,3 +1,6 @@
 langchain[all]
+langchain_openai
 langgraph
 openai
+chromadb
+jupyter
