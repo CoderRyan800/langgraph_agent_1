@@ -36,18 +36,6 @@ def aggregate_chunk(chunk):
     """
     return "\n".join([msg.content for msg in chunk])
 
-class OpenAIEmbedding:
-    """
-    A wrapper for the OpenAI embedding model.
-    """
-
-    def __init__(self, model="text-embedding-ada-002"):
-        """
-        Initialize the OpenAI embedding model.
-        :param model: The name of the OpenAI embedding model to use.
-        """
-        self.model = model
-
 
 class OpenAIEmbedding:
     """
