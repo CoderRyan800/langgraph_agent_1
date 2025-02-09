@@ -279,23 +279,29 @@ class AgentManager:
 
     def load_system_message(self, thread_id: str) -> str:
         """
-        Load the system message text from a file based on the thread_id.
-        The filename is assumed to be in the format: system_messages/system_{thread_id}.txt
-        Always includes the thread_id in the returned text so the agent is aware of it.
+        Load the system message text from a file based on a UUID-based thread_id.
+        If the file does not exist, it is created automatically.
         """
-        # Resolve the current file's directory (assuming it's in <repo_root>/src)
         current_dir = Path(__file__).resolve().parent
         repo_root = current_dir.parent
         filename = repo_root / "system_messages" / f"system_{thread_id}.txt"
 
+        # Ensure the directory exists
+        filename.parent.mkdir(parents=True, exist_ok=True)
+
         try:
+            # If the file does not exist, create it with a default message
+            if not filename.exists():
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write("Welcome! This is your system message.\n")
+
+            # Read the system message
             with open(filename, "r", encoding="utf-8") as f:
                 system_message = f.read().strip()
         except Exception as e:
             print(f"Could not load system message file for thread {thread_id}: {e}")
-            system_message = ""
+            system_message = "Error loading system message."
 
-        # Append thread_id so the agent always knows it
         return f"Thread ID: {thread_id}\n\n{system_message}"
 
     def update_vector_memory(self, thread_id, messages, turns=5):
@@ -390,18 +396,21 @@ agent = AgentManager()
 # Chat with the agent
 
 conversation_items = [
-    "hi! I'm bob",
+    "hi! I'm john, and you are bob",
     "what's my name?",
+    "what's your name?",
+    "please write our names to the system message",
     "i like the celtics!",
     "i like how much they win",
     "what's my name?",
     "which NFL team do you think I like?",
     "i like the patriots!",
     "what's the weather in san francisco?",
-    "which are the coolest cities?"
+    "which are the coolest cities?",
+    "what's your name?"
 ]
-
-config = {"configurable": {"thread_id": "123456"}}
+thread_id = generate_thread_id()
+config = {"configurable": {"thread_id": thread_id}}
 
 embedder = OpenAIEmbedding(model="text-embedding-ada-002")
 text = "Testing OpenAI embedding generation."
