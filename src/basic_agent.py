@@ -8,6 +8,42 @@ from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage, Hum
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import MessagesState, StateGraph, START, END
 
+from langchain_core.messages import AIMessage
+from langchain_core.tools import tool
+
+from langgraph.prebuilt import ToolNode
+
+@tool
+def get_weather(location: str):
+    """Call to get the current weather."""
+    if location.lower() in ["sf", "san francisco"]:
+        return "It's 60 degrees and foggy."
+    else:
+        return "It's 90 degrees and sunny."
+
+
+@tool
+def get_coolest_cities():
+    """Get a list of coolest cities"""
+    return "nyc, sf"
+
+tool_list = [get_weather, get_coolest_cities]
+tool_node = ToolNode(tool_list)
+
+message_with_single_tool_call = AIMessage(
+    content="",
+    tool_calls=[
+        {
+            "name": "get_weather",
+            "args": {"location": "sf"},
+            "id": "tool_call_id",
+            "type": "tool_call",
+        }
+    ],
+)
+
+print(tool_node.invoke({"messages": [message_with_single_tool_call]}))
+
 def print_update(update):
     for k, v in update.items():
         for m in v["messages"]:
@@ -78,7 +114,9 @@ class AgentManager:
         """
         # Existing attributes
         self.memory = MemorySaver()
-        self.model = ChatOpenAI(model=model_name, temperature=temperature)
+        self.model = ChatOpenAI(model=model_name, temperature=temperature).bind_tools(tool_list)
+        #self.model = ChatOpenAI(model=model_name, temperature=temperature)
+
         self.messages_before_summary = messages_before_summary
         self.app = self._create_workflow()
 
@@ -110,12 +148,18 @@ class AgentManager:
         response = self.model.invoke(messages)
         return {"messages": [response]}
 
-    def _should_continue(self, state: State) -> Literal["summarize_conversation", END]:
-        """Return the next node to execute."""
+    def _should_continue(self, state: State) -> Literal["tools", "summarize_conversation", END]:
         messages = state["messages"]
-        if len(messages) > self.messages_before_summary:
+        last_message = messages[-1]
+        if last_message.tool_calls:
+            return "tools"
+        elif len(messages) > self.messages_before_summary:
             return "summarize_conversation"
         return END
+    
+        # if len(messages) > self.messages_before_summary:
+        #     return "summarize_conversation"
+        # return END
 
     def _summarize_conversation(self, state: State):
         summary = state.get("summary", "")
@@ -141,18 +185,20 @@ class AgentManager:
         # Define the conversation node and the summarize node
         workflow.add_node("conversation", self._call_model)
         workflow.add_node("summarize_conversation", self._summarize_conversation)
+        workflow.add_node("tools", tool_node)
 
         # Set the entrypoint as conversation
         workflow.add_edge(START, "conversation")
 
         # Add conditional edges
-        workflow.add_conditional_edges(
-            "conversation",
-            self._should_continue,
-        )
+        workflow.add_conditional_edges("conversation", 
+                                       self._should_continue, 
+                                       ["tools", "summarize_conversation", END])
 
         # Add edge from summarize_conversation to END
         workflow.add_edge("summarize_conversation", END)
+        # Add edge from tool note back to conversation.
+        workflow.add_edge("tools","conversation")
 
         return workflow.compile(checkpointer=self.memory)
 
@@ -273,7 +319,9 @@ conversation_items = [
     "i like how much they win",
     "what's my name?",
     "which NFL team do you think I like?",
-    "i like the patriots!"
+    "i like the patriots!",
+    "what's the weather in san francisco?",
+    "which are the coolest cities?"
 ]
 
 config = {"configurable": {"thread_id": "123456"}}
@@ -282,6 +330,8 @@ embedder = OpenAIEmbedding(model="text-embedding-ada-002")
 text = "Testing OpenAI embedding generation."
 embedding = embedder.embed(text)
 print(embedding)
+
+print(agent.model.invoke("what's the weather in sf?").tool_calls)
 
 for item in conversation_items:
     agent.conversation(item, config)
