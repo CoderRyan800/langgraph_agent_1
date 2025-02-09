@@ -1,5 +1,6 @@
 import traceback
 import sys
+import uuid
 import pdb  # Optional: for interactive post-mortem debugging
 from typing import Literal
 import openai
@@ -16,6 +17,10 @@ from langchain_core.tools import tool
 
 from langgraph.prebuilt import ToolNode
 
+def generate_thread_id():
+    """Generates a new UUID-based thread ID."""
+    return str(uuid.uuid4())  # Example: "b43129f0-d7e6-411c-8e82-2b8f4796c5b9"
+
 @tool
 def get_weather(location: str):
     """Call to get the current weather."""
@@ -30,7 +35,39 @@ def get_coolest_cities():
     """Get a list of coolest cities"""
     return "nyc, sf"
 
-tool_list = [get_weather, get_coolest_cities]
+from langchain.tools import tool
+from pathlib import Path
+
+def _get_system_message_path(thread_id: str) -> Path:
+    """Get the correct file path for the system message based on thread_id."""
+    current_dir = Path(__file__).resolve().parent
+    repo_root = current_dir.parent
+    return repo_root / "system_messages" / f"system_{thread_id}.txt"
+
+@tool
+def read_system_message(thread_id: str) -> str:
+    """Reads and returns the system message for the given thread_id."""
+    filename = _get_system_message_path(thread_id)
+    try:
+        with open(filename, "r", encoding="utf-8") as file:
+            return file.read().strip()
+    except Exception as e:
+        print(f"Could not read system message file for thread {thread_id}: {e}")
+        return ""
+
+@tool
+def write_system_message(thread_id: str, new_content: str) -> str:
+    """Overwrites the system message for the given thread_id."""
+    filename = _get_system_message_path(thread_id)
+    try:
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(new_content.strip())
+        return "System message updated successfully."
+    except Exception as e:
+        print(f"Could not write to system message file for thread {thread_id}: {e}")
+        return "Failed to update system message."
+
+tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message]
 tool_node = ToolNode(tool_list)
 
 message_with_single_tool_call = AIMessage(
@@ -244,20 +281,22 @@ class AgentManager:
         """
         Load the system message text from a file based on the thread_id.
         The filename is assumed to be in the format: system_messages/system_{thread_id}.txt
+        Always includes the thread_id in the returned text so the agent is aware of it.
         """
         # Resolve the current file's directory (assuming it's in <repo_root>/src)
         current_dir = Path(__file__).resolve().parent
-        # Get the repository root by navigating up one directory
         repo_root = current_dir.parent
-        # Construct the path to the system message file
         filename = repo_root / "system_messages" / f"system_{thread_id}.txt"
 
         try:
             with open(filename, "r", encoding="utf-8") as f:
-                return f.read().strip()
+                system_message = f.read().strip()
         except Exception as e:
             print(f"Could not load system message file for thread {thread_id}: {e}")
-            return ""
+            system_message = ""
+
+        # Append thread_id so the agent always knows it
+        return f"Thread ID: {thread_id}\n\n{system_message}"
 
     def update_vector_memory(self, thread_id, messages, turns=5):
         """
