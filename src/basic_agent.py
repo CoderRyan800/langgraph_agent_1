@@ -1,3 +1,6 @@
+import traceback
+import sys
+import pdb  # Optional: for interactive post-mortem debugging
 from typing import Literal
 import openai
 from pathlib import Path
@@ -332,7 +335,13 @@ embedding = embedder.embed(text)
 print(embedding)
 
 print(agent.model.invoke("what's the weather in sf?").tool_calls)
+try:
+    for item in conversation_items:
+        agent.conversation(item, config)
+except Exception as e:
+    print("An exception occurred:")
+    traceback.print_exc(file=sys.stdout)  # This prints the full traceback to stdout
+    # Optionally, drop into the debugger for interactive debugging:
+    pdb.post_mortem()
 
-for item in conversation_items:
-    agent.conversation(item, config)
 
