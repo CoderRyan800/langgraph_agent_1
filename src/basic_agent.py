@@ -7,7 +7,7 @@ from pathlib import Path
 from openai import OpenAI
 from datetime import datetime
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage, HumanMessage
+from langchain_core.messages import SystemMessage, ToolMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import MessagesState, StateGraph, START, END
 
@@ -133,7 +133,7 @@ class AgentManager:
         summary = state.get("summary", "")
         # Create a working copy of the messages list
         messages = state["messages"].copy()
-        
+
         # Load the custom system message based on the current thread_id (if available)
         if hasattr(self, "current_thread_id"):
             custom_system_message = self.load_system_message(self.current_thread_id)
@@ -147,7 +147,12 @@ class AgentManager:
             # Insert it after the custom system message, or at the beginning if no custom message exists.
             insert_index = 1 if hasattr(self, "current_thread_id") and custom_system_message else 0
             messages.insert(insert_index, SystemMessage(content=summary_message))
-        
+        print("DEBUG: MESSAGES AT THE CALL MODEL NODE:\n")
+        for index in range(len(messages)):
+            print(f"Message {index}: ")
+            print(messages[index].pretty_print())
+        print("DEBUG: End messages at call model node\n")
+
         response = self.model.invoke(messages)
         return {"messages": [response]}
 
@@ -176,11 +181,41 @@ class AgentManager:
                 "Create a concise but factually accurate summary of the conversation above, making sure to retain any key facts such as names, preferences, and opinions."
             )
 
+        # Append the summarization prompt
         messages = state["messages"] + [HumanMessage(content=summary_message)]
-        response = self.model.invoke(messages)
-        delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-2]]
-        return {"summary": response.content, "messages": delete_messages}
 
+        # Debugging: Print the messages before summarization
+        print("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
+        for index, msg in enumerate(messages):
+            print(f"Message {index}: {msg.pretty_print()}")
+        print("DEBUG: End messages to be summarized\n")
+
+        # Invoke the model with the cleaned message list.
+        response = self.model.invoke(messages)
+
+        # Store the updated summary
+        new_summary = response.content
+
+        # Set how many messages we want to keep for context (e.g., last 2 messages)
+        NUM_MESSAGES_TO_KEEP = 2
+
+        # Step 1: Create `RemoveMessage` objects for all **older** messages
+        old_messages_to_remove = [
+            RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
+        ]
+
+        # Step 2: Create `RemoveMessage` objects for tool-related messages in **recent history**
+        recent_tool_messages_to_remove = [
+            RemoveMessage(id=m.id)
+            for m in state["messages"][-NUM_MESSAGES_TO_KEEP:]
+            if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and bool(m.tool_calls))
+        ]
+
+        # Combine both lists
+        delete_messages = old_messages_to_remove + recent_tool_messages_to_remove
+
+        return {"summary": new_summary, "messages": delete_messages}
+    
     def _create_workflow(self):
         # Define a new graph
         workflow = StateGraph(State)
