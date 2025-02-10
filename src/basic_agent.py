@@ -98,6 +98,7 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
             embeddings=[note_embedding],
             ids=[unique_id]
         )
+        # agent.chroma_manager.persist_for_thread(thread_id)
         return "Voluntary note added successfully."
     except Exception as e:
         return f"Error adding voluntary note: {e}"
@@ -392,7 +393,7 @@ class AgentManager:
             embeddings=[chunk_embedding],
             ids=[unique_id]
         )
-
+        # self.chroma_manager.persist_for_thread(thread_id)
     def chat(self, message: str, config: dict = None):
         if config is None:
             config = {"configurable": {"thread_id": "default"}}
@@ -472,7 +473,8 @@ conversation_items = [
     "what's in your voluntary memory?",
     "what's your name?"
 ]
-thread_id = generate_thread_id()
+# thread_id = generate_thread_id()
+thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
 config = {"configurable": {"thread_id": thread_id}}
 
 agent = AgentManager()

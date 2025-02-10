@@ -1,5 +1,5 @@
 import os
-from chromadb import Client
+from chromadb import Client, PersistentClient
 from chromadb.config import Settings
 
 class ChromaDBManager:
@@ -35,7 +35,8 @@ class ChromaDBManager:
         if db_path in self.clients:
             client = self.clients[db_path]
         else:
-            client = Client(Settings(persist_directory=db_path))
+            # client = Client(Settings(persist_directory=db_path))
+            client = PersistentClient(path=db_path)
             self.clients[db_path] = client
 
         # Use memory_type to differentiate between collections.
