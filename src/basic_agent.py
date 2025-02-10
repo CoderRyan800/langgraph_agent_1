@@ -17,6 +17,10 @@ from langchain_core.tools import tool
 
 from langgraph.prebuilt import ToolNode
 
+from agent_registry import get_agent  # Import the registry lookup
+
+from agent_registry import register_agent
+
 def generate_thread_id():
     """Generates a new UUID-based thread ID."""
     return str(uuid.uuid4())  # Example: "b43129f0-d7e6-411c-8e82-2b8f4796c5b9"
@@ -67,7 +71,63 @@ def write_system_message(thread_id: str, new_content: str) -> str:
         print(f"Could not write to system message file for thread {thread_id}: {e}")
         return "Failed to update system message."
 
-tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message]
+from datetime import datetime
+from langchain_core.tools import tool
+from agent_registry import get_agent  # Import the registry lookup
+
+@tool
+def add_voluntary_note(thread_id: str, note: str) -> str:
+    """
+    Compose a note to be stored in the voluntary vector memory.
+    The note is stored in the Chroma DB under the "voluntary" memory type.
+    """
+    try:
+        # Look up the appropriate agent by thread_id.
+        agent = get_agent(thread_id)
+        if not agent:
+            return "No agent found for the given thread_id."
+        
+        voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
+        timestamp = datetime.utcnow().isoformat()
+        note_text = f"{timestamp}: {note}"
+        note_embedding = agent.embedder.embed(note_text)
+        unique_id = f"{thread_id}_voluntary_{timestamp}"
+        voluntary_db.add(
+            documents=[note_text],
+            embeddings=[note_embedding],
+            ids=[unique_id]
+        )
+        return "Voluntary note added successfully."
+    except Exception as e:
+        return f"Error adding voluntary note: {e}"
+
+@tool
+def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
+    """
+    Search the voluntary memory for relevant notes based on the query.
+    Returns a newline-separated string of relevant notes.
+    """
+    try:
+        # Look up the agent using the registry.
+        agent = get_agent(thread_id)
+        if not agent:
+            return "No agent found for the given thread_id."
+        
+        voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
+        query_embedding = agent.embedder.embed(query)
+        results = agent.chroma_manager.query_memory(voluntary_db, query_embedding, k)
+        
+        flattened = []
+        if results and "documents" in results:
+            flattened = [doc for sublist in results["documents"] for doc in sublist]
+        if flattened:
+            return "\n".join(flattened)
+        else:
+            return "No relevant notes found in voluntary memory."
+    except Exception as e:
+        return f"Error searching voluntary memory: {e}"
+
+tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message, add_voluntary_note, search_voluntary_memory]
 tool_node = ToolNode(tool_list)
 
 message_with_single_tool_call = AIMessage(
@@ -391,7 +451,6 @@ class AgentManager:
         response = self.chat(message, config)
         print("\nMessage: {}\nResponse: {}\n".format(message, response))
 
-agent = AgentManager()
 
 # Chat with the agent
 
@@ -412,6 +471,9 @@ conversation_items = [
 thread_id = generate_thread_id()
 config = {"configurable": {"thread_id": thread_id}}
 
+agent = AgentManager()
+# Register the agent with its thread ID.
+register_agent(thread_id, agent)
 embedder = OpenAIEmbedding(model="text-embedding-ada-002")
 text = "Testing OpenAI embedding generation."
 embedding = embedder.embed(text)
