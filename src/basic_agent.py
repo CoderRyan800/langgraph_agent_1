@@ -1,12 +1,151 @@
+import traceback
+import sys
+import uuid
+import pdb  # Optional: for interactive post-mortem debugging
 from typing import Literal
 import openai
-
+from pathlib import Path
 from openai import OpenAI
 from datetime import datetime
-from langchain.chat_models import ChatOpenAI
-from langchain_core.messages import SystemMessage, RemoveMessage, AIMessage, HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, ToolMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import MessagesState, StateGraph, START, END
+
+from langchain_core.messages import AIMessage
+from langchain_core.tools import tool
+
+from langgraph.prebuilt import ToolNode
+
+from agent_registry import get_agent  # Import the registry lookup
+
+from agent_registry import register_agent
+
+def generate_thread_id():
+    """Generates a new UUID-based thread ID."""
+    return str(uuid.uuid4())  # Example: "b43129f0-d7e6-411c-8e82-2b8f4796c5b9"
+
+@tool
+def get_weather(location: str):
+    """Call to get the current weather."""
+    if location.lower() in ["sf", "san francisco"]:
+        return "It's 60 degrees and foggy."
+    else:
+        return "It's 90 degrees and sunny."
+
+
+@tool
+def get_coolest_cities():
+    """Get a list of coolest cities"""
+    return "nyc, sf"
+
+from langchain.tools import tool
+from pathlib import Path
+
+def _get_system_message_path(thread_id: str) -> Path:
+    """Get the correct file path for the system message based on thread_id."""
+    current_dir = Path(__file__).resolve().parent
+    repo_root = current_dir.parent
+    return repo_root / "system_messages" / f"system_{thread_id}.txt"
+
+@tool
+def read_system_message(thread_id: str) -> str:
+    """Reads and returns the system message for the given thread_id."""
+    filename = _get_system_message_path(thread_id)
+    try:
+        with open(filename, "r", encoding="utf-8") as file:
+            return file.read().strip()
+    except Exception as e:
+        print(f"Could not read system message file for thread {thread_id}: {e}")
+        return ""
+
+@tool
+def write_system_message(thread_id: str, new_content: str) -> str:
+    """Overwrites the system message for the given thread_id."""
+    filename = _get_system_message_path(thread_id)
+    try:
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(new_content.strip())
+        return "System message updated successfully."
+    except Exception as e:
+        print(f"Could not write to system message file for thread {thread_id}: {e}")
+        return "Failed to update system message."
+
+from datetime import datetime
+from langchain_core.tools import tool
+from agent_registry import get_agent  # Import the registry lookup
+
+@tool
+def add_voluntary_note(thread_id: str, note: str) -> str:
+    """
+    Compose a note to be stored in the voluntary vector memory.
+    The note is stored in the Chroma DB under the "voluntary" memory type.
+    """
+
+    try:
+        # Look up the appropriate agent by thread_id.
+        agent = get_agent(thread_id)
+        if not agent:
+            return "No agent found for the given thread_id."
+        
+        voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
+        timestamp = datetime.utcnow().isoformat()
+        note_text = f"{timestamp}: {note}"
+        note_embedding = agent.embedder.embed(note_text)
+        unique_id = f"{thread_id}_voluntary_{timestamp}"
+        voluntary_db.add(
+            documents=[note_text],
+            embeddings=[note_embedding],
+            ids=[unique_id]
+        )
+        # agent.chroma_manager.persist_for_thread(thread_id)
+        return "Voluntary note added successfully."
+    except Exception as e:
+        return f"Error adding voluntary note: {e}"
+
+@tool
+def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
+    """
+    Search the voluntary memory for relevant notes based on the query.
+    Returns a newline-separated string of relevant notes.
+    """
+
+    try:
+        # Look up the agent using the registry.
+        agent = get_agent(thread_id)
+        if not agent:
+            return "No agent found for the given thread_id."
+        
+        voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
+        query_embedding = agent.embedder.embed(query)
+        results = agent.chroma_manager.query_memory(voluntary_db, query_embedding, k)
+        
+        flattened = []
+        if results and "documents" in results:
+            flattened = [doc for sublist in results["documents"] for doc in sublist]
+        if flattened:
+            return "\n".join(flattened)
+        else:
+            return "No relevant notes found in voluntary memory."
+    except Exception as e:
+        return f"Error searching voluntary memory: {e}"
+
+tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message, add_voluntary_note, search_voluntary_memory]
+tool_node = ToolNode(tool_list)
+
+message_with_single_tool_call = AIMessage(
+    content="",
+    tool_calls=[
+        {
+            "name": "get_weather",
+            "args": {"location": "sf"},
+            "id": "tool_call_id",
+            "type": "tool_call",
+        }
+    ],
+)
+
+print(tool_node.invoke({"messages": [message_with_single_tool_call]}))
 
 def print_update(update):
     for k, v in update.items():
@@ -35,18 +174,6 @@ def aggregate_chunk(chunk):
     Combine the content of the messages in the chunk into a single string.
     """
     return "\n".join([msg.content for msg in chunk])
-
-class OpenAIEmbedding:
-    """
-    A wrapper for the OpenAI embedding model.
-    """
-
-    def __init__(self, model="text-embedding-ada-002"):
-        """
-        Initialize the OpenAI embedding model.
-        :param model: The name of the OpenAI embedding model to use.
-        """
-        self.model = model
 
 
 class OpenAIEmbedding:
@@ -90,7 +217,9 @@ class AgentManager:
         """
         # Existing attributes
         self.memory = MemorySaver()
-        self.model = ChatOpenAI(model=model_name, temperature=temperature)
+        self.model = ChatOpenAI(model=model_name, temperature=temperature).bind_tools(tool_list)
+        #self.model = ChatOpenAI(model=model_name, temperature=temperature)
+
         self.messages_before_summary = messages_before_summary
         self.app = self._create_workflow()
 
@@ -102,20 +231,43 @@ class AgentManager:
 
     def _call_model(self, state: State):
         summary = state.get("summary", "")
+        # Create a working copy of the messages list
+        messages = state["messages"].copy()
+
+        # Load the custom system message based on the current thread_id (if available)
+        if hasattr(self, "current_thread_id"):
+            custom_system_message = self.load_system_message(self.current_thread_id)
+            if custom_system_message:
+                # Prepend the custom system message to the conversation
+                messages.insert(0, SystemMessage(content=custom_system_message))
+        
+        # If there's a summary, add it as an additional system message.
         if summary:
-            system_message = f"Summary of conversation earlier: {summary}"
-            messages = [SystemMessage(content=system_message)] + state["messages"]
-        else:
-            messages = state["messages"]
+            summary_message = f"Summary of conversation earlier: {summary}"
+            # Insert it after the custom system message, or at the beginning if no custom message exists.
+            insert_index = 1 if hasattr(self, "current_thread_id") and custom_system_message else 0
+            messages.insert(insert_index, SystemMessage(content=summary_message))
+        print("DEBUG: MESSAGES AT THE CALL MODEL NODE:\n")
+        for index in range(len(messages)):
+            print(f"Message {index}: ")
+            print(messages[index].pretty_print())
+        print("DEBUG: End messages at call model node\n")
+
         response = self.model.invoke(messages)
         return {"messages": [response]}
 
-    def _should_continue(self, state: State) -> Literal["summarize_conversation", END]:
-        """Return the next node to execute."""
+    def _should_continue(self, state: State) -> Literal["tools", "summarize_conversation", END]:
         messages = state["messages"]
-        if len(messages) > self.messages_before_summary:
+        last_message = messages[-1]
+        if last_message.tool_calls:
+            return "tools"
+        elif len(messages) > self.messages_before_summary:
             return "summarize_conversation"
         return END
+    
+        # if len(messages) > self.messages_before_summary:
+        #     return "summarize_conversation"
+        # return END
 
     def _summarize_conversation(self, state: State):
         summary = state.get("summary", "")
@@ -129,11 +281,41 @@ class AgentManager:
                 "Create a concise but factually accurate summary of the conversation above, making sure to retain any key facts such as names, preferences, and opinions."
             )
 
+        # Append the summarization prompt
         messages = state["messages"] + [HumanMessage(content=summary_message)]
-        response = self.model.invoke(messages)
-        delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-2]]
-        return {"summary": response.content, "messages": delete_messages}
 
+        # Debugging: Print the messages before summarization
+        print("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
+        for index, msg in enumerate(messages):
+            print(f"Message {index}: {msg.pretty_print()}")
+        print("DEBUG: End messages to be summarized\n")
+
+        # Invoke the model with the cleaned message list.
+        response = self.model.invoke(messages)
+
+        # Store the updated summary
+        new_summary = response.content
+
+        # Set how many messages we want to keep for context (e.g., last 2 messages)
+        NUM_MESSAGES_TO_KEEP = 2
+
+        # Step 1: Create `RemoveMessage` objects for all **older** messages
+        old_messages_to_remove = [
+            RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
+        ]
+
+        # Step 2: Create `RemoveMessage` objects for tool-related messages in **recent history**
+        recent_tool_messages_to_remove = [
+            RemoveMessage(id=m.id)
+            for m in state["messages"][-NUM_MESSAGES_TO_KEEP:]
+            if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and bool(m.tool_calls))
+        ]
+
+        # Combine both lists
+        delete_messages = old_messages_to_remove + recent_tool_messages_to_remove
+
+        return {"summary": new_summary, "messages": delete_messages}
+    
     def _create_workflow(self):
         # Define a new graph
         workflow = StateGraph(State)
@@ -141,20 +323,49 @@ class AgentManager:
         # Define the conversation node and the summarize node
         workflow.add_node("conversation", self._call_model)
         workflow.add_node("summarize_conversation", self._summarize_conversation)
+        workflow.add_node("tools", tool_node)
 
         # Set the entrypoint as conversation
         workflow.add_edge(START, "conversation")
 
         # Add conditional edges
-        workflow.add_conditional_edges(
-            "conversation",
-            self._should_continue,
-        )
+        workflow.add_conditional_edges("conversation", 
+                                       self._should_continue, 
+                                       ["tools", "summarize_conversation", END])
 
         # Add edge from summarize_conversation to END
         workflow.add_edge("summarize_conversation", END)
+        # Add edge from tool note back to conversation.
+        workflow.add_edge("tools","conversation")
 
         return workflow.compile(checkpointer=self.memory)
+
+    def load_system_message(self, thread_id: str) -> str:
+        """
+        Load the system message text from a file based on a UUID-based thread_id.
+        If the file does not exist, it is created automatically.
+        """
+        current_dir = Path(__file__).resolve().parent
+        repo_root = current_dir.parent
+        filename = repo_root / "system_messages" / f"system_{thread_id}.txt"
+
+        # Ensure the directory exists
+        filename.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # If the file does not exist, create it with a default message
+            if not filename.exists():
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write("Welcome! This is your system message.\n")
+
+            # Read the system message
+            with open(filename, "r", encoding="utf-8") as f:
+                system_message = f.read().strip()
+        except Exception as e:
+            print(f"Could not load system message file for thread {thread_id}: {e}")
+            system_message = "Error loading system message."
+
+        return f"Thread ID: {thread_id}\n\n{system_message}"
 
     def update_vector_memory(self, thread_id, messages, turns=5):
         """
@@ -182,12 +393,13 @@ class AgentManager:
             embeddings=[chunk_embedding],
             ids=[unique_id]
         )
-
+        # self.chroma_manager.persist_for_thread(thread_id)
     def chat(self, message: str, config: dict = None):
         if config is None:
             config = {"configurable": {"thread_id": "default"}}
         
         thread_id = config["configurable"]["thread_id"]
+        self.current_thread_id = thread_id  # Save the current thread_id for later use
 
         # Step 1: Initialize the mandatory memory database
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
@@ -242,27 +454,45 @@ class AgentManager:
         response = self.chat(message, config)
         print("\nMessage: {}\nResponse: {}\n".format(message, response))
 
-agent = AgentManager()
 
 # Chat with the agent
 
 conversation_items = [
-    "hi! I'm bob",
+    "hi! I'm john, and you are bob",
     "what's my name?",
+    "what's your name?",
+    "please write our names to the system message",
     "i like the celtics!",
     "i like how much they win",
     "what's my name?",
     "which NFL team do you think I like?",
-    "i like the patriots!"
+    "i like the patriots!",
+    "what's the weather in san francisco?",
+    "which are the coolest cities?",
+    "please store the fact that i like the celtics in your voluntary memory",
+    "what's in your voluntary memory?",
+    "what's your name?"
 ]
+# thread_id = generate_thread_id()
+thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
+config = {"configurable": {"thread_id": thread_id}}
 
-config = {"configurable": {"thread_id": "123456"}}
-
+agent = AgentManager()
+# Register the agent with its thread ID.
+register_agent(thread_id, agent)
 embedder = OpenAIEmbedding(model="text-embedding-ada-002")
 text = "Testing OpenAI embedding generation."
 embedding = embedder.embed(text)
 print(embedding)
 
-for item in conversation_items:
-    agent.conversation(item, config)
+print(agent.model.invoke("what's the weather in sf?").tool_calls)
+try:
+    for item in conversation_items:
+        agent.conversation(item, config)
+except Exception as e:
+    print("An exception occurred:")
+    traceback.print_exc(file=sys.stdout)  # This prints the full traceback to stdout
+    # Optionally, drop into the debugger for interactive debugging:
+    pdb.post_mortem()
+
 
