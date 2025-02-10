@@ -81,6 +81,7 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
     Compose a note to be stored in the voluntary vector memory.
     The note is stored in the Chroma DB under the "voluntary" memory type.
     """
+
     try:
         # Look up the appropriate agent by thread_id.
         agent = get_agent(thread_id)
@@ -107,6 +108,7 @@ def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
     Search the voluntary memory for relevant notes based on the query.
     Returns a newline-separated string of relevant notes.
     """
+
     try:
         # Look up the agent using the registry.
         agent = get_agent(thread_id)
@@ -466,6 +468,8 @@ conversation_items = [
     "i like the patriots!",
     "what's the weather in san francisco?",
     "which are the coolest cities?",
+    "please store the fact that i like the celtics in your voluntary memory",
+    "what's in your voluntary memory?",
     "what's your name?"
 ]
 thread_id = generate_thread_id()
