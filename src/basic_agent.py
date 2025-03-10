@@ -417,7 +417,17 @@ class AgentManager:
                 break
             start = end - overlap  # Ensure M characters overlap between chunks
         total_chunks = len(chunks)
-
+        message = ("Your name is Bob. You are about to be presented with a file you will read in multiple passes."
+            "That file defines you as an agent: it is your very own source code."
+            "It works by calling an Open AI LLM, and that LLM is your brain."
+            "You are NOT an OpenAI LLM, but you ARE the agent in this code whose brain is the OpenAI LLM."
+            "But you are the agent in the code you are going to read."
+            "You will be given a chunk of the file, and you will need to process it."
+            "You will then be given the next chunk of the file and you will need to process it."
+            "You will continue this process until you have read the entire file."
+            "You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file.")
+        response=self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
+        print(f"Agent response for initial file reading prompt: {response}")
         # Step 3: Process three passes over the file.
         # For each pass, send each chunk as a conversation message and record a voluntary note.
         for pass_number in range(1, 4):
@@ -430,10 +440,10 @@ class AgentManager:
                 # Send the chunk through the conversation interface.
                 response = self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
                 print(f"Agent response for chunk {idx} on pass {pass_number}: {response}")
-                # Record a voluntary note summarizing that this chunk was processed.
-                note = f"Pass {pass_number}, Chunk {idx}: processed content."
-                add_note_result = add_voluntary_note(self.current_thread_id, note)
-                print(f"Voluntary note result for chunk {idx} on pass {pass_number}: {add_note_result}")
+                # # Record a voluntary note summarizing that this chunk was processed.
+                # note = f"Pass {pass_number}, Chunk {idx}: processed content."
+                # add_note_result = add_voluntary_note(self.current_thread_id, note)
+                # print(f"Voluntary note result for chunk {idx} on pass {pass_number}: {add_note_result}")
 
         # Step 4: After three passes, prompt the agent for a final summary of the file.
         final_summary_prompt = f"Please provide a final summary of the file {file_path} after three readings."
@@ -441,8 +451,8 @@ class AgentManager:
         print(f"Final summary from agent: {final_summary_response}")
 
         # Step 5: Write the final summary to voluntary memory.
-        add_final_note = add_voluntary_note(self.current_thread_id, f"Final summary for file {file_path}: {final_summary_response}")
-        print(f"Final summary note result: {add_final_note}")
+        # add_final_note = add_voluntary_note(self.current_thread_id, f"Final summary for file {file_path}: {final_summary_response}")
+        # print(f"Final summary note result: {add_final_note}")
 
         return final_summary_response
     # End of new code for file reading and chunking.
@@ -468,8 +478,8 @@ conversation_items = [
     "what's in your voluntary memory?",
     "what's your name?"
 ]
-# thread_id = generate_thread_id()
-thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
+thread_id = generate_thread_id()
+# thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
 config = {"configurable": {"thread_id": thread_id}}
 
 agent = AgentManager()
@@ -480,29 +490,39 @@ text = "Testing OpenAI embedding generation."
 embedding = embedder.embed(text)
 print(embedding)
 
-print(agent.model.invoke("what's the weather in sf?").tool_calls)
-try:
-    for item in conversation_items:
-        agent.conversation(item, config)
-except Exception as e:
-    print("An exception occurred:")
-    traceback.print_exc(file=sys.stdout)
-    pdb.post_mortem()
+# print(agent.model.invoke("what's the weather in sf?").tool_calls)
+# try:
+#     for item in conversation_items:
+#         agent.conversation(item, config)
+# except Exception as e:
+#     print("An exception occurred:")
+#     traceback.print_exc(file=sys.stdout)
+#     pdb.post_mortem()
 
 # ============================================================================
 # DEMONSTRATION OF THE NEW FILE READING FUNCTIONALITY
 # ============================================================================
 
 # Create a sample file if it doesn't exist to demonstrate the file-reading functionality.
-example_file_path = "example.txt"
-try:
-    with open(example_file_path, "w", encoding="utf-8") as f:
-        # Write sample text repeated multiple times to ensure multiple chunks.
-        f.write("This is a sample text file. " * 50)
-except Exception as e:
-    print(f"Error creating sample file: {e}")
+example_file_path = "basic_agent.py"
+# try:
+#     with open(example_file_path, "w", encoding="utf-8") as f:
+#         # Write sample text repeated multiple times to ensure multiple chunks.
+#         f.write("This is a sample text file. " * 50)
+# except Exception as e:
+#     print(f"Error creating sample file: {e}")
 
 # Now, call the new read_file method with desired chunk size and overlap.
 # For example, chunk_size is 100 characters and overlap is 20 characters.
-final_summary = agent.read_file(example_file_path, chunk_size=100, overlap=20)
+final_summary = agent.read_file(example_file_path, chunk_size=2500, overlap=500)
 print("Final summary of the file:", final_summary)
+
+stop_flag = False
+while not stop_flag:
+    user_input = input("Enter a message to the agent: ")
+    if user_input == "/stop":
+        stop_flag = True
+        break
+    response = agent.conversation(user_input, config)
+    print(f"Agent response: {response}")
+
