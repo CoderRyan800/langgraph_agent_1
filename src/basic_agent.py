@@ -6,7 +6,7 @@ from typing import Literal
 import openai
 from pathlib import Path
 from openai import OpenAI
-from datetime import datetime
+from datetime import datetime,UTC
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, ToolMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -102,7 +102,7 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
             return "No agent found for the given thread_id."
         
         voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         note_text = f"{timestamp}: {note}"
         note_embedding = agent.embedder.embed(note_text)
         unique_id = f"{thread_id}_voluntary_{timestamp}"
@@ -378,9 +378,9 @@ class AgentManager:
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
         chunk = get_sliding_window_chunk(messages, turns)
         aggregated_text = aggregate_chunk(chunk)
-        chunk_text = f"{datetime.utcnow().isoformat()}: {aggregated_text}"
+        chunk_text = f"{datetime.now(UTC).isoformat()}: {aggregated_text}"
         chunk_embedding = self.embedder.embed(chunk_text)
-        unique_id = f"{thread_id}_chunk_{datetime.utcnow().isoformat()}"
+        unique_id = f"{thread_id}_chunk_{datetime.now(UTC).isoformat()}"
         mandatory_db.add(
             documents=[chunk_text],
             embeddings=[chunk_embedding],
