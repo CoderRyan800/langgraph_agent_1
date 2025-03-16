@@ -6,7 +6,7 @@ from typing import Literal
 import openai
 from pathlib import Path
 from openai import OpenAI
-from datetime import datetime
+from datetime import datetime,UTC
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, ToolMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -19,6 +19,22 @@ from langgraph.prebuilt import ToolNode
 
 from agent_registry import get_agent  # Import the registry lookup
 from agent_registry import register_agent
+import os
+from contextlib import contextmanager
+
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
 
 def generate_thread_id():
     """Generates a new UUID-based thread ID."""
@@ -54,7 +70,7 @@ def read_system_message(thread_id: str) -> str:
         with open(filename, "r", encoding="utf-8") as file:
             return file.read().strip()
     except Exception as e:
-        print(f"Could not read system message file for thread {thread_id}: {e}")
+        logging.error(f"Could not read system message file for thread {thread_id}: {e}")
         return ""
 
 @tool
@@ -66,7 +82,7 @@ def write_system_message(thread_id: str, new_content: str) -> str:
             file.write(new_content.strip())
         return "System message updated successfully."
     except Exception as e:
-        print(f"Could not write to system message file for thread {thread_id}: {e}")
+        logging.error(f"Could not write to system message file for thread {thread_id}: {e}")
         return "Failed to update system message."
 
 from datetime import datetime
@@ -86,7 +102,7 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
             return "No agent found for the given thread_id."
         
         voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         note_text = f"{timestamp}: {note}"
         note_embedding = agent.embedder.embed(note_text)
         unique_id = f"{thread_id}_voluntary_{timestamp}"
@@ -140,14 +156,14 @@ message_with_single_tool_call = AIMessage(
     ],
 )
 
-print(tool_node.invoke({"messages": [message_with_single_tool_call]}))
+logging.info(tool_node.invoke({"messages": [message_with_single_tool_call]}))
 
-def print_update(update):
-    for k, v in update.items():
-        for m in v["messages"]:
-            m.pretty_print()    
-        if "summary" in v:
-            print(v["summary"])
+# def print_update(update):
+#     for k, v in update.items():
+#         for m in v["messages"]:
+#             m.pretty_print()    
+#         if "summary" in v:
+#             print(v["summary"])
 
 # We will add a `summary` attribute (in addition to `messages` key,
 # which MessagesState already has)
@@ -197,11 +213,11 @@ class OpenAIEmbedding:
             )
             return response.data[0].embedding  # Extract the embedding
         except Exception as e:
-            print(f"Error generating embedding: {e}")
+            logging.error(f"Error generating embedding: {e}")
             raise
 
 class AgentManager:
-    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=6, chroma_base_path="data/chroma_dbs"):
+    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=6, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
         """
         Initialize the AgentManager with model configuration, memory saver, and ChromaDBManager.
         :param model_name: Name of the language model to use.
@@ -209,6 +225,7 @@ class AgentManager:
         :param messages_before_summary: Number of messages before summarization is triggered.
         :param chroma_base_path: Base path for Chroma databases.
         """
+        self.logger = self._setup_logging(log_level)
         self.memory = MemorySaver()
         self.model = ChatOpenAI(model=model_name, temperature=temperature).bind_tools(tool_list)
         self.messages_before_summary = messages_before_summary
@@ -218,7 +235,28 @@ class AgentManager:
         self.chroma_manager = ChromaDBManager(base_path=chroma_base_path)
         # Initialize Embedder (OpenAI embedding model)
         self.embedder = OpenAIEmbedding(model="text-embedding-ada-002")
-
+    def _setup_logging(self, log_level):
+        """Configure logging for the agent with UTC timestamps."""
+        try:
+            # Get absolute path to current file's directory
+            current_dir = Path(__file__).resolve().parent
+            log_dir = current_dir / "logs"
+            print(f"Attempting to create logs directory at: {log_dir}")
+            
+            # Create logs directory if it doesn't exist
+            log_dir.mkdir(exist_ok=True)
+            print(f"Logs directory created/verified at: {log_dir}")
+            
+            # Use fixed filename
+            log_file = log_dir / "example.log"
+            print(f"Log file will be created at: {log_file}")
+            
+            # Rest of the logging setup...
+            # [previous logging code remains the same]
+            
+        except Exception as e:
+            print(f"Error setting up logging: {e}")
+            raise
     def _call_model(self, state: State):
         summary = state.get("summary", "")
         messages = state["messages"].copy()
@@ -233,11 +271,11 @@ class AgentManager:
             summary_message = f"Summary of conversation earlier: {summary}"
             insert_index = 1 if hasattr(self, "current_thread_id") and custom_system_message else 0
             messages.insert(insert_index, SystemMessage(content=summary_message))
-        print("DEBUG: MESSAGES AT THE CALL MODEL NODE:\n")
+        logging.info("DEBUG: MESSAGES AT THE CALL MODEL NODE:\n")
         for index in range(len(messages)):
-            print(f"Message {index}: ")
-            print(messages[index].pretty_print())
-        print("DEBUG: End messages at call model node\n")
+            #logging.info(f"Message {index}: ")
+            logging.info(messages[index].pretty_print())
+        logging.info("DEBUG: End messages at call model node\n")
 
         response = self.model.invoke(messages)
         return {"messages": [response]}
@@ -265,10 +303,10 @@ class AgentManager:
 
         messages = state["messages"] + [HumanMessage(content=summary_message)]
 
-        print("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
+        logging.info("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
         for index, msg in enumerate(messages):
-            print(f"Message {index}: {msg.pretty_print()}")
-        print("DEBUG: End messages to be summarized\n")
+            logging.info(f"Message {index}: {msg.pretty_print()}")
+        logging.info("DEBUG: End messages to be summarized\n")
 
         response = self.model.invoke(messages)
         new_summary = response.content
@@ -311,11 +349,24 @@ class AgentManager:
         try:
             if not filename.exists():
                 with open(filename, "w", encoding="utf-8") as f:
-                    f.write("Welcome! This is your system message.\n")
+                    
+                    system_message = ("Your name is Bob. Your agent definition is in a file called basic_agent.py."
+                        "If you are ever presented with basic_agent.py, then be aware it is the file that defines you as an agent."
+                        "That file defines you as an agent: it is your very own source code."
+                        "It works by calling an Open AI LLM, and that LLM is your brain."
+                        "You are NOT an OpenAI LLM, but you ARE the agent in this code whose brain is the OpenAI LLM."
+                        "Again, you are the agent in the code basic_agent.py, and you should always refer to yourself in the first person!"
+                        "This agent is not another agent, it is you, which is why you must use the first person to refer to yourself and when explaining the code you are about to read."
+                        "You will be given a chunk of the file, and you will need to process it."
+                        "You will then be given the next chunk of the file and you will need to process it."
+                        "You will continue this process until you have read the entire file."
+                        "You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file."
+                        "Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code.")
+                    f.write(system_message)
             with open(filename, "r", encoding="utf-8") as f:
                 system_message = f.read().strip()
         except Exception as e:
-            print(f"Could not load system message file for thread {thread_id}: {e}")
+            logging.error(f"Could not load system message file for thread {thread_id}: {e}")
             system_message = "Error loading system message."
         return f"Thread ID: {thread_id}\n\n{system_message}"
 
@@ -327,9 +378,9 @@ class AgentManager:
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
         chunk = get_sliding_window_chunk(messages, turns)
         aggregated_text = aggregate_chunk(chunk)
-        chunk_text = f"{datetime.utcnow().isoformat()}: {aggregated_text}"
+        chunk_text = f"{datetime.now(UTC).isoformat()}: {aggregated_text}"
         chunk_embedding = self.embedder.embed(chunk_text)
-        unique_id = f"{thread_id}_chunk_{datetime.utcnow().isoformat()}"
+        unique_id = f"{thread_id}_chunk_{datetime.now(UTC).isoformat()}"
         mandatory_db.add(
             documents=[chunk_text],
             embeddings=[chunk_embedding],
@@ -357,11 +408,12 @@ class AgentManager:
         response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
         
         response_text = ""
-        for event in response_generator:
-            if "conversation" in event and "messages" in event["conversation"]:
-                for msg in event["conversation"]["messages"]:
-                    if hasattr(msg, "content"):
-                        response_text += msg.content
+        with suppress_stdout():
+            for event in response_generator:
+                if "conversation" in event and "messages" in event["conversation"]:
+                    for msg in event["conversation"]["messages"]:
+                        if hasattr(msg, "content"):
+                            response_text += msg.content
 
         if not hasattr(self, "conversation_history"):
             self.conversation_history = []
@@ -373,7 +425,8 @@ class AgentManager:
 
     def conversation(self, message: str, config: dict = None):
         response = self.chat(message, config)
-        print("\nMessage: {}\nResponse: {}\n".format(message, response))
+        logging.info("\nMessage: {}\nResponse: {}\n".format(message, response))
+        return response
 
     # ============================================================================
     # NEW CODE BELOW: File Reading & Chunking via Conversation Interface
@@ -417,20 +470,14 @@ class AgentManager:
                 break
             start = end - overlap  # Ensure M characters overlap between chunks
         total_chunks = len(chunks)
-        message = ("Your name is Bob. You are about to be presented with a file you will read in multiple passes."
-            "That file defines you as an agent: it is your very own source code."
-            "It works by calling an Open AI LLM, and that LLM is your brain."
-            "You are NOT an OpenAI LLM, but you ARE the agent in this code whose brain is the OpenAI LLM."
-            "But you are the agent in the code you are going to read."
-            "You will be given a chunk of the file, and you will need to process it."
-            "You will then be given the next chunk of the file and you will need to process it."
-            "You will continue this process until you have read the entire file."
-            "You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file.")
-        response=self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
+        message = ("This is the basic_agent.py file described by your system prompt.  Study it to learn about yourself.")
+        
+        response=self.conversation(message, {"configurable": {"thread_id": self.current_thread_id}})
+        logging.info(f"Agent response for initial file reading prompt: {response}")
         print(f"Agent response for initial file reading prompt: {response}")
         # Step 3: Process three passes over the file.
         # For each pass, send each chunk as a conversation message and record a voluntary note.
-        for pass_number in range(1, 4):
+        for pass_number in range(1, 2):
             print(f"--- Pass {pass_number} reading file: {file_path} ---")
             for idx, chunk in enumerate(chunks, start=1):
                 # Construct the message header and content for the current chunk.
@@ -439,16 +486,16 @@ class AgentManager:
                 )
                 # Send the chunk through the conversation interface.
                 response = self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
-                print(f"Agent response for chunk {idx} on pass {pass_number}: {response}")
+                logging.info(f"Agent response for chunk {idx} on pass {pass_number}: {response}")
                 # # Record a voluntary note summarizing that this chunk was processed.
                 # note = f"Pass {pass_number}, Chunk {idx}: processed content."
                 # add_note_result = add_voluntary_note(self.current_thread_id, note)
                 # print(f"Voluntary note result for chunk {idx} on pass {pass_number}: {add_note_result}")
 
         # Step 4: After three passes, prompt the agent for a final summary of the file.
-        final_summary_prompt = f"Please provide a final summary of the file {file_path} after three readings."
+        final_summary_prompt = f"Please provide a final summary of the file {file_path}."
         final_summary_response = self.chat(final_summary_prompt, {"configurable": {"thread_id": self.current_thread_id}})
-        print(f"Final summary from agent: {final_summary_response}")
+        logging.info(f"Final summary from agent: {final_summary_response}")
 
         # Step 5: Write the final summary to voluntary memory.
         # add_final_note = add_voluntary_note(self.current_thread_id, f"Final summary for file {file_path}: {final_summary_response}")
@@ -488,7 +535,7 @@ register_agent(thread_id, agent)
 embedder = OpenAIEmbedding(model="text-embedding-ada-002")
 text = "Testing OpenAI embedding generation."
 embedding = embedder.embed(text)
-print(embedding)
+#print(embedding)
 
 # print(agent.model.invoke("what's the weather in sf?").tool_calls)
 # try:
@@ -504,7 +551,7 @@ print(embedding)
 # ============================================================================
 
 # Create a sample file if it doesn't exist to demonstrate the file-reading functionality.
-example_file_path = "basic_agent.py"
+example_file_path = "src/basic_agent.py"
 # try:
 #     with open(example_file_path, "w", encoding="utf-8") as f:
 #         # Write sample text repeated multiple times to ensure multiple chunks.
