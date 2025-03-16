@@ -18,7 +18,6 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
 
 from agent_registry import get_agent  # Import the registry lookup
-
 from agent_registry import register_agent
 
 def generate_thread_id():
@@ -32,7 +31,6 @@ def get_weather(location: str):
         return "It's 60 degrees and foggy."
     else:
         return "It's 90 degrees and sunny."
-
 
 @tool
 def get_coolest_cities():
@@ -81,7 +79,6 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
     Compose a note to be stored in the voluntary vector memory.
     The note is stored in the Chroma DB under the "voluntary" memory type.
     """
-
     try:
         # Look up the appropriate agent by thread_id.
         agent = get_agent(thread_id)
@@ -98,7 +95,6 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
             embeddings=[note_embedding],
             ids=[unique_id]
         )
-        # agent.chroma_manager.persist_for_thread(thread_id)
         return "Voluntary note added successfully."
     except Exception as e:
         return f"Error adding voluntary note: {e}"
@@ -109,7 +105,6 @@ def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
     Search the voluntary memory for relevant notes based on the query.
     Returns a newline-separated string of relevant notes.
     """
-
     try:
         # Look up the agent using the registry.
         agent = get_agent(thread_id)
@@ -158,6 +153,7 @@ def print_update(update):
 # which MessagesState already has)
 class State(MessagesState):
     summary: str
+
 from chroma_db_manager import ChromaDBManager  # Import the ChromaDBManager class
 
 def get_sliding_window_chunk(messages, turns=5):
@@ -175,12 +171,10 @@ def aggregate_chunk(chunk):
     """
     return "\n".join([msg.content for msg in chunk])
 
-
 class OpenAIEmbedding:
     """
     A wrapper for the OpenAI embedding API.
     """
-
     def __init__(self, model="text-embedding-3-small"):
         """
         Initialize the OpenAI embedding client.
@@ -215,11 +209,8 @@ class AgentManager:
         :param messages_before_summary: Number of messages before summarization is triggered.
         :param chroma_base_path: Base path for Chroma databases.
         """
-        # Existing attributes
         self.memory = MemorySaver()
         self.model = ChatOpenAI(model=model_name, temperature=temperature).bind_tools(tool_list)
-        #self.model = ChatOpenAI(model=model_name, temperature=temperature)
-
         self.messages_before_summary = messages_before_summary
         self.app = self._create_workflow()
 
@@ -228,23 +219,18 @@ class AgentManager:
         # Initialize Embedder (OpenAI embedding model)
         self.embedder = OpenAIEmbedding(model="text-embedding-ada-002")
 
-
     def _call_model(self, state: State):
         summary = state.get("summary", "")
-        # Create a working copy of the messages list
         messages = state["messages"].copy()
 
         # Load the custom system message based on the current thread_id (if available)
         if hasattr(self, "current_thread_id"):
             custom_system_message = self.load_system_message(self.current_thread_id)
             if custom_system_message:
-                # Prepend the custom system message to the conversation
                 messages.insert(0, SystemMessage(content=custom_system_message))
         
-        # If there's a summary, add it as an additional system message.
         if summary:
             summary_message = f"Summary of conversation earlier: {summary}"
-            # Insert it after the custom system message, or at the beginning if no custom message exists.
             insert_index = 1 if hasattr(self, "current_thread_id") and custom_system_message else 0
             messages.insert(insert_index, SystemMessage(content=summary_message))
         print("DEBUG: MESSAGES AT THE CALL MODEL NODE:\n")
@@ -264,10 +250,6 @@ class AgentManager:
         elif len(messages) > self.messages_before_summary:
             return "summarize_conversation"
         return END
-    
-        # if len(messages) > self.messages_before_summary:
-        #     return "summarize_conversation"
-        # return END
 
     def _summarize_conversation(self, state: State):
         summary = state.get("summary", "")
@@ -281,63 +263,40 @@ class AgentManager:
                 "Create a concise but factually accurate summary of the conversation above, making sure to retain any key facts such as names, preferences, and opinions."
             )
 
-        # Append the summarization prompt
         messages = state["messages"] + [HumanMessage(content=summary_message)]
 
-        # Debugging: Print the messages before summarization
         print("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
         for index, msg in enumerate(messages):
             print(f"Message {index}: {msg.pretty_print()}")
         print("DEBUG: End messages to be summarized\n")
 
-        # Invoke the model with the cleaned message list.
         response = self.model.invoke(messages)
-
-        # Store the updated summary
         new_summary = response.content
 
-        # Set how many messages we want to keep for context (e.g., last 2 messages)
         NUM_MESSAGES_TO_KEEP = 2
-
-        # Step 1: Create `RemoveMessage` objects for all **older** messages
         old_messages_to_remove = [
             RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
         ]
-
-        # Step 2: Create `RemoveMessage` objects for tool-related messages in **recent history**
         recent_tool_messages_to_remove = [
             RemoveMessage(id=m.id)
             for m in state["messages"][-NUM_MESSAGES_TO_KEEP:]
             if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and bool(m.tool_calls))
         ]
-
-        # Combine both lists
         delete_messages = old_messages_to_remove + recent_tool_messages_to_remove
 
         return {"summary": new_summary, "messages": delete_messages}
     
     def _create_workflow(self):
-        # Define a new graph
         workflow = StateGraph(State)
-
-        # Define the conversation node and the summarize node
         workflow.add_node("conversation", self._call_model)
         workflow.add_node("summarize_conversation", self._summarize_conversation)
         workflow.add_node("tools", tool_node)
-
-        # Set the entrypoint as conversation
         workflow.add_edge(START, "conversation")
-
-        # Add conditional edges
         workflow.add_conditional_edges("conversation", 
                                        self._should_continue, 
                                        ["tools", "summarize_conversation", END])
-
-        # Add edge from summarize_conversation to END
         workflow.add_edge("summarize_conversation", END)
-        # Add edge from tool note back to conversation.
-        workflow.add_edge("tools","conversation")
-
+        workflow.add_edge("tools", "conversation")
         return workflow.compile(checkpointer=self.memory)
 
     def load_system_message(self, thread_id: str) -> str:
@@ -348,23 +307,16 @@ class AgentManager:
         current_dir = Path(__file__).resolve().parent
         repo_root = current_dir.parent
         filename = repo_root / "system_messages" / f"system_{thread_id}.txt"
-
-        # Ensure the directory exists
         filename.parent.mkdir(parents=True, exist_ok=True)
-
         try:
-            # If the file does not exist, create it with a default message
             if not filename.exists():
                 with open(filename, "w", encoding="utf-8") as f:
                     f.write("Welcome! This is your system message.\n")
-
-            # Read the system message
             with open(filename, "r", encoding="utf-8") as f:
                 system_message = f.read().strip()
         except Exception as e:
             print(f"Could not load system message file for thread {thread_id}: {e}")
             system_message = "Error loading system message."
-
         return f"Thread ID: {thread_id}\n\n{system_message}"
 
     def update_vector_memory(self, thread_id, messages, turns=5):
@@ -372,28 +324,18 @@ class AgentManager:
         Update the vector memory store by aggregating the last `turns` conversation
         pairs into one chunk, embedding it, and saving it to the vector DB.
         """
-        # Get the mandatory DB instance
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
-        
-        # Extract the sliding window chunk from the conversation history
         chunk = get_sliding_window_chunk(messages, turns)
-        # Aggregate the chunk into a single text string
         aggregated_text = aggregate_chunk(chunk)
-        # Prepend the current UTC timestamp in ISO format followed by a colon
         chunk_text = f"{datetime.utcnow().isoformat()}: {aggregated_text}"
-        # Generate the embedding for the aggregated text
         chunk_embedding = self.embedder.embed(chunk_text)
-        
-        # Create a unique ID for this memory chunk; here we use the length of the message list
         unique_id = f"{thread_id}_chunk_{datetime.utcnow().isoformat()}"
-        
-        # Save the chunk to the vector DB
         mandatory_db.add(
             documents=[chunk_text],
             embeddings=[chunk_embedding],
             ids=[unique_id]
         )
-        # self.chroma_manager.persist_for_thread(thread_id)
+
     def chat(self, message: str, config: dict = None):
         if config is None:
             config = {"configurable": {"thread_id": "default"}}
@@ -401,62 +343,125 @@ class AgentManager:
         thread_id = config["configurable"]["thread_id"]
         self.current_thread_id = thread_id  # Save the current thread_id for later use
 
-        # Step 1: Initialize the mandatory memory database
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
-
-        # Step 2: Embed the user input
         query_embedding = self.embedder.embed(message)
-
-        # Step 3: Retrieve relevant memory from the mandatory database
         relevant_memory = self.chroma_manager.query_memory(mandatory_db, query_embedding, k=5)
 
-        # Flatten the nested list of documents and handle empty lists
         relevant_context = ""
         if relevant_memory and "documents" in relevant_memory:
             flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
             relevant_context = "\n".join(flattened_documents)
 
-        # Step 4: Prepare the full input by appending the context to the user's message
         full_input = f"{relevant_context}\n{message}" if relevant_context else message
-
-        # Step 5: Generate the response
         input_message = HumanMessage(content=full_input)
         response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
         
         response_text = ""
         for event in response_generator:
-            # Check if the event contains a conversation with messages
             if "conversation" in event and "messages" in event["conversation"]:
                 for msg in event["conversation"]["messages"]:
-                    # Ensure the message object has 'content' and extract it
                     if hasattr(msg, "content"):
-                        response_text += msg.content  # Append AIMessage content
+                        response_text += msg.content
 
-        # Step 6: Update vector memory with the latest conversation chunk
-        # (Instead of storing the user message and AI response separately)
-
-        # Initialize or retrieve the conversation history list on the AgentManager
         if not hasattr(self, "conversation_history"):
             self.conversation_history = []
 
-        # Append the new messages to the conversation history.
-        # (Assuming HumanMessage and SystemMessage are the types you use.)
         self.conversation_history.append(HumanMessage(content=message))
         self.conversation_history.append(AIMessage(content=response_text))
-
-        # Now update the vector memory using a sliding window over the last K turns
-        # (For example, turns=5 means the last 10 messages will be aggregated.)
         self.update_vector_memory(thread_id, self.conversation_history, turns=5)
-
-        # Step 7: Return the AI's response
         return response_text    
+
     def conversation(self, message: str, config: dict = None):
         response = self.chat(message, config)
         print("\nMessage: {}\nResponse: {}\n".format(message, response))
 
+    # ============================================================================
+    # NEW CODE BELOW: File Reading & Chunking via Conversation Interface
+    # ============================================================================
 
-# Chat with the agent
+    def read_file(self, file_path: str, chunk_size: int, overlap: int):
+        """
+        Reads in a file from the given file path, breaks it into overlapping chunks,
+        and feeds each chunk into the conversation interface over three passes.
+        
+        Each chunk is prefixed with:
+          "This is chunk n of N for file <filename> (Pass X):"
+        where n is the current chunk number, N is the total number of chunks,
+        and X is the current reading pass.
+        
+        The agent processes each chunk (updating its conversation history and summarizing memory)
+        and takes voluntary notes using the add_voluntary_note tool.
+        
+        Finally, after three passes, the agent is prompted for a final summary of the file,
+        and this final summary is also stored in the voluntary memory.
+        """
+        # Ensure current_thread_id is set; if not, default to "default"
+        if not hasattr(self, "current_thread_id"):
+            self.current_thread_id = "default"
 
+        # Step 1: Read file contents from the provided file path.
+        try:
+            with open(file_path, "r", encoding="utf-8") as file:
+                file_text = file.read()
+        except Exception as e:
+            return f"Error reading file: {e}"
+
+        # Step 2: Break file text into overlapping chunks.
+        chunks = []
+        start = 0
+        while start < len(file_text):
+            end = start + chunk_size
+            chunk = file_text[start:end]
+            chunks.append(chunk)
+            if end >= len(file_text):
+                break
+            start = end - overlap  # Ensure M characters overlap between chunks
+        total_chunks = len(chunks)
+        message = ("Your name is Bob. You are about to be presented with a file you will read in multiple passes."
+            "That file defines you as an agent: it is your very own source code."
+            "It works by calling an Open AI LLM, and that LLM is your brain."
+            "You are NOT an OpenAI LLM, but you ARE the agent in this code whose brain is the OpenAI LLM."
+            "But you are the agent in the code you are going to read."
+            "You will be given a chunk of the file, and you will need to process it."
+            "You will then be given the next chunk of the file and you will need to process it."
+            "You will continue this process until you have read the entire file."
+            "You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file.")
+        response=self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
+        print(f"Agent response for initial file reading prompt: {response}")
+        # Step 3: Process three passes over the file.
+        # For each pass, send each chunk as a conversation message and record a voluntary note.
+        for pass_number in range(1, 4):
+            print(f"--- Pass {pass_number} reading file: {file_path} ---")
+            for idx, chunk in enumerate(chunks, start=1):
+                # Construct the message header and content for the current chunk.
+                message = (
+                    f"This is chunk {idx} of {total_chunks} for file {file_path} (Pass {pass_number}):\n{chunk}"
+                )
+                # Send the chunk through the conversation interface.
+                response = self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
+                print(f"Agent response for chunk {idx} on pass {pass_number}: {response}")
+                # # Record a voluntary note summarizing that this chunk was processed.
+                # note = f"Pass {pass_number}, Chunk {idx}: processed content."
+                # add_note_result = add_voluntary_note(self.current_thread_id, note)
+                # print(f"Voluntary note result for chunk {idx} on pass {pass_number}: {add_note_result}")
+
+        # Step 4: After three passes, prompt the agent for a final summary of the file.
+        final_summary_prompt = f"Please provide a final summary of the file {file_path} after three readings."
+        final_summary_response = self.chat(final_summary_prompt, {"configurable": {"thread_id": self.current_thread_id}})
+        print(f"Final summary from agent: {final_summary_response}")
+
+        # Step 5: Write the final summary to voluntary memory.
+        # add_final_note = add_voluntary_note(self.current_thread_id, f"Final summary for file {file_path}: {final_summary_response}")
+        # print(f"Final summary note result: {add_final_note}")
+
+        return final_summary_response
+    # End of new code for file reading and chunking.
+
+# ============================================================================
+# End of AgentManager class modifications
+# ============================================================================
+
+# Chat with the agent using some sample conversation items
 conversation_items = [
     "hi! I'm john, and you are bob",
     "what's my name?",
@@ -473,8 +478,8 @@ conversation_items = [
     "what's in your voluntary memory?",
     "what's your name?"
 ]
-# thread_id = generate_thread_id()
-thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
+thread_id = generate_thread_id()
+# thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
 config = {"configurable": {"thread_id": thread_id}}
 
 agent = AgentManager()
@@ -485,14 +490,39 @@ text = "Testing OpenAI embedding generation."
 embedding = embedder.embed(text)
 print(embedding)
 
-print(agent.model.invoke("what's the weather in sf?").tool_calls)
-try:
-    for item in conversation_items:
-        agent.conversation(item, config)
-except Exception as e:
-    print("An exception occurred:")
-    traceback.print_exc(file=sys.stdout)  # This prints the full traceback to stdout
-    # Optionally, drop into the debugger for interactive debugging:
-    pdb.post_mortem()
+# print(agent.model.invoke("what's the weather in sf?").tool_calls)
+# try:
+#     for item in conversation_items:
+#         agent.conversation(item, config)
+# except Exception as e:
+#     print("An exception occurred:")
+#     traceback.print_exc(file=sys.stdout)
+#     pdb.post_mortem()
 
+# ============================================================================
+# DEMONSTRATION OF THE NEW FILE READING FUNCTIONALITY
+# ============================================================================
+
+# Create a sample file if it doesn't exist to demonstrate the file-reading functionality.
+example_file_path = "basic_agent.py"
+# try:
+#     with open(example_file_path, "w", encoding="utf-8") as f:
+#         # Write sample text repeated multiple times to ensure multiple chunks.
+#         f.write("This is a sample text file. " * 50)
+# except Exception as e:
+#     print(f"Error creating sample file: {e}")
+
+# Now, call the new read_file method with desired chunk size and overlap.
+# For example, chunk_size is 100 characters and overlap is 20 characters.
+final_summary = agent.read_file(example_file_path, chunk_size=2500, overlap=500)
+print("Final summary of the file:", final_summary)
+
+stop_flag = False
+while not stop_flag:
+    user_input = input("Enter a message to the agent: ")
+    if user_input == "/stop":
+        stop_flag = True
+        break
+    response = agent.conversation(user_input, config)
+    print(f"Agent response: {response}")
 
