@@ -19,6 +19,18 @@ from langgraph.prebuilt import ToolNode
 
 from agent_registry import get_agent  # Import the registry lookup
 from agent_registry import register_agent
+import os
+from contextlib import contextmanager
+
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
 
 import logging
 logger = logging.getLogger(__name__)
@@ -146,12 +158,12 @@ message_with_single_tool_call = AIMessage(
 
 logging.info(tool_node.invoke({"messages": [message_with_single_tool_call]}))
 
-def print_update(update):
-    for k, v in update.items():
-        for m in v["messages"]:
-            m.pretty_print()    
-        if "summary" in v:
-            print(v["summary"])
+# def print_update(update):
+#     for k, v in update.items():
+#         for m in v["messages"]:
+#             m.pretty_print()    
+#         if "summary" in v:
+#             print(v["summary"])
 
 # We will add a `summary` attribute (in addition to `messages` key,
 # which MessagesState already has)
@@ -261,8 +273,8 @@ class AgentManager:
             messages.insert(insert_index, SystemMessage(content=summary_message))
         logging.info("DEBUG: MESSAGES AT THE CALL MODEL NODE:\n")
         for index in range(len(messages)):
-            print(f"Message {index}: ")
-            print(messages[index].pretty_print())
+            #logging.info(f"Message {index}: ")
+            logging.info(messages[index].pretty_print())
         logging.info("DEBUG: End messages at call model node\n")
 
         response = self.model.invoke(messages)
@@ -396,11 +408,12 @@ class AgentManager:
         response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
         
         response_text = ""
-        for event in response_generator:
-            if "conversation" in event and "messages" in event["conversation"]:
-                for msg in event["conversation"]["messages"]:
-                    if hasattr(msg, "content"):
-                        response_text += msg.content
+        with suppress_stdout():
+            for event in response_generator:
+                if "conversation" in event and "messages" in event["conversation"]:
+                    for msg in event["conversation"]["messages"]:
+                        if hasattr(msg, "content"):
+                            response_text += msg.content
 
         if not hasattr(self, "conversation_history"):
             self.conversation_history = []
@@ -412,7 +425,8 @@ class AgentManager:
 
     def conversation(self, message: str, config: dict = None):
         response = self.chat(message, config)
-        print("\nMessage: {}\nResponse: {}\n".format(message, response))
+        logging.info("\nMessage: {}\nResponse: {}\n".format(message, response))
+        return response
 
     # ============================================================================
     # NEW CODE BELOW: File Reading & Chunking via Conversation Interface
@@ -459,6 +473,7 @@ class AgentManager:
         message = ("This is the basic_agent.py file described by your system prompt.  Study it to learn about yourself.")
         
         response=self.conversation(message, {"configurable": {"thread_id": self.current_thread_id}})
+        logging.info(f"Agent response for initial file reading prompt: {response}")
         print(f"Agent response for initial file reading prompt: {response}")
         # Step 3: Process three passes over the file.
         # For each pass, send each chunk as a conversation message and record a voluntary note.
@@ -471,16 +486,16 @@ class AgentManager:
                 )
                 # Send the chunk through the conversation interface.
                 response = self.chat(message, {"configurable": {"thread_id": self.current_thread_id}})
-                print(f"Agent response for chunk {idx} on pass {pass_number}: {response}")
+                logging.info(f"Agent response for chunk {idx} on pass {pass_number}: {response}")
                 # # Record a voluntary note summarizing that this chunk was processed.
                 # note = f"Pass {pass_number}, Chunk {idx}: processed content."
                 # add_note_result = add_voluntary_note(self.current_thread_id, note)
                 # print(f"Voluntary note result for chunk {idx} on pass {pass_number}: {add_note_result}")
 
         # Step 4: After three passes, prompt the agent for a final summary of the file.
-        final_summary_prompt = f"Please provide a final summary of the file {file_path} after three readings."
+        final_summary_prompt = f"Please provide a final summary of the file {file_path}."
         final_summary_response = self.chat(final_summary_prompt, {"configurable": {"thread_id": self.current_thread_id}})
-        print(f"Final summary from agent: {final_summary_response}")
+        logging.info(f"Final summary from agent: {final_summary_response}")
 
         # Step 5: Write the final summary to voluntary memory.
         # add_final_note = add_voluntary_note(self.current_thread_id, f"Final summary for file {file_path}: {final_summary_response}")
