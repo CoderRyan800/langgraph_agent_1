@@ -275,7 +275,7 @@ class AgentManager:
         for index in range(len(messages)):
             #logging.info(f"Message {index}: ")
             logging.info(messages[index].pretty_print())
-        logging.info("DEBUG: End messages at call model node\n")
+        logging.info("\nDEBUG: End messages at call model node\n")
 
         response = self.model.invoke(messages)
         return {"messages": [response]}
@@ -306,7 +306,7 @@ class AgentManager:
         logging.info("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
         for index, msg in enumerate(messages):
             logging.info(f"Message {index}: {msg.pretty_print()}")
-        logging.info("DEBUG: End messages to be summarized\n")
+        logging.info("\nDEBUG: End messages to be summarized\n")
 
         response = self.model.invoke(messages)
         new_summary = response.content
@@ -403,7 +403,7 @@ class AgentManager:
             flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
             relevant_context = "\n".join(flattened_documents)
 
-        full_input = f"{relevant_context}\n{message}" if relevant_context else message
+        full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nCURRENT INPUT MESSAGE:\n{message}" if relevant_context else message
         input_message = HumanMessage(content=full_input)
         response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
         
