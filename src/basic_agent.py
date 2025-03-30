@@ -561,15 +561,44 @@ example_file_path = "src/basic_agent.py"
 
 # Now, call the new read_file method with desired chunk size and overlap.
 # For example, chunk_size is 100 characters and overlap is 20 characters.
-final_summary = agent.read_file(example_file_path, chunk_size=2500, overlap=500)
-print("Final summary of the file:", final_summary)
 
-stop_flag = False
-while not stop_flag:
-    user_input = input("Enter a message to the agent: ")
-    if user_input == "/stop":
-        stop_flag = True
-        break
-    response = agent.conversation(user_input, config)
-    print(f"Agent response: {response}")
+def main_loop():
+    final_summary = agent.read_file(example_file_path, chunk_size=2500, overlap=500)
+    print("Final summary of the file:", final_summary)  
+    stop_flag = False
+    while not stop_flag:
+        try:
+            # Your existing conversation handling code.
+            # For example:
+            user_input = input("Enter a message to the agent: ")
+            if user_input == "/stop":
+                stop_flag = True
+                break
+            response = agent.conversation(user_input, config)
+            print(f"Agent response: {response}")
+        except Exception as e:
+            # Capture the full stack trace and the error message
+            stack_trace = traceback.format_exc()
+            error_message = str(e)
+            
+            # Prepare a meta message containing the error details
+            meta_message = (
+                "An exception occurred during the conversation loop.\n"
+                "Error Message: {}\n"
+                "Stack Trace:\n{}\n\n"
+                "Based on your knowledge of your own source code, please analyze the issue and suggest a solution."
+            ).format(error_message, stack_trace)
+            
+            # Instead of simply logging, send the meta message into the conversation interface.
+            # Depending on your implementation, this could mean calling your agent's conversation method.
+            response = agent.conversation(meta_message, config)
+            print("Agent (Exception Handler):", meta_message)
+            print(f"Agent exception handling response: {response}")
+            # Optionally, you could also choose to continue or exit the loop.
+            # For example, to continue:
+            continue
+            # Or to break the loop:
+            # break
 
+if __name__ == "__main__":
+    main_loop()
