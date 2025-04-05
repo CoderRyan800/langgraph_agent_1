@@ -432,7 +432,7 @@ class AgentManager:
     # NEW CODE BELOW: File Reading & Chunking via Conversation Interface
     # ============================================================================
 
-    def read_file(self, file_path: str, chunk_size: int, overlap: int):
+    def read_own_source_code(self, file_path: str, chunk_size: int, overlap: int):
         """
         Reads in a file from the given file path, breaks it into overlapping chunks,
         and feeds each chunk into the conversation interface over three passes.
@@ -563,7 +563,7 @@ example_file_path = "src/basic_agent.py"
 # For example, chunk_size is 100 characters and overlap is 20 characters.
 
 def main_loop():
-    final_summary = agent.read_file(example_file_path, chunk_size=2500, overlap=500)
+    final_summary = agent.read_own_source_code(example_file_path, chunk_size=2500, overlap=500)
     print("Final summary of the file:", final_summary)  
     stop_flag = False
     while not stop_flag:
