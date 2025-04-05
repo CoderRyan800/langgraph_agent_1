@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, ToolMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import MessagesState, StateGraph, START, END
+import numpy as np
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
@@ -434,7 +435,7 @@ class AgentManager:
 
     def read_own_source_code(self, file_path: str, chunk_size: int, overlap: int):
         """
-        Reads in a file from the given file path, breaks it into overlapping chunks,
+        Reads in the agent's own source code from the given file path, breaks it into overlapping chunks,
         and feeds each chunk into the conversation interface over three passes.
         
         Each chunk is prefixed with:
@@ -566,6 +567,7 @@ def main_loop():
     final_summary = agent.read_own_source_code(example_file_path, chunk_size=2500, overlap=500)
     print("Final summary of the file:", final_summary)  
     stop_flag = False
+    # Introduce intentional bug that can cause a divide by zero error.
     while not stop_flag:
         try:
             # Your existing conversation handling code.
@@ -574,6 +576,9 @@ def main_loop():
             if user_input == "/stop":
                 stop_flag = True
                 break
+            random_number = np.random.rand(1)[0]
+            if random_number < 0.2:
+                dummy = 1 / 0
             response = agent.conversation(user_input, config)
             print(f"Agent response: {response}")
         except Exception as e:
