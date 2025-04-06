@@ -1,0 +1,96 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+\title{Demonstrating Epistemic, Structural, and Identity-Oriented Self-Awareness in a Language-Model-Based Software Agent}
+\author{Ryan Mukai}
+\date{April 2025}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This paper presents a demonstration of limited epistemic and structural self-awareness in a language-model-based software agent named Bob. Through intentional design, the agent was tested for its ability to (1) evaluate when it has sufficient information to draw conclusions (epistemic self-awareness), and (2) recognize, analyze, and recommend corrections for bugs in its own codebase (structural self-awareness). In addition, we introduce the concept of identity self-awareness, the agent's understanding and management of its own persistent identity over time, as a future direction. Our agents already incorporate persistent conversational memory and internal state continuity, forming the groundwork for long-term identity coherence. The results show that even within a constrained architecture, an agent powered by large language models can meaningfully engage in reflective behavior about its own knowledge, structure, and—eventually—its identity.
+\end{abstract}
+
+\section{Introduction}
+Recent advancements in language models have opened new frontiers in agent design. While language models are not sentient, their capacity to reason about abstract structures and respond conditionally enables new forms of limited self-awareness. This paper explores whether such agents can demonstrate forms of epistemic and structural self-awareness and how these capabilities can be explicitly tested. We also discuss an emerging third dimension: identity self-awareness, which includes persistence of identity and cryptographic authorship.
+
+\section{Definitions and Scope}
+\begin{itemize}
+    \item \textbf{Epistemic self-awareness}: The ability of an agent to reason about what it knows and does not know.
+    \item \textbf{Structural self-awareness}: The ability of an agent to understand the structure of its own implementation, recognize bugs, and recommend fixes.
+    \item \textbf{Identity self-awareness (proposed)}: The ability of an agent to maintain and verify continuity of identity over time, potentially through persistent state, cryptographic signatures, and verifiable authorship.
+    \item \textbf{Not human consciousness}: The agent does not claim or simulate subjective experience. This is a functional evaluation only.
+\end{itemize}
+
+\section{Agent Architecture}
+The agent, named Bob, is a Python-based framework powered by OpenAI's language models and equipped with:
+\begin{itemize}
+    \item Exception handling and stack trace parsing
+    \item Code reflection capability via access to its own source
+    \item Logical reasoning modules (via LLM inference)
+    \item Voluntary memory and conversation tracking
+\end{itemize}
+A deliberate \texttt{ZeroDivisionError} was introduced to test structural diagnostics.
+
+\section{Methodology}
+A conversational transcript was generated using a scripted interaction with the agent. Logical prompts tested epistemic reasoning. Code failure and recovery scenarios tested structural awareness. The conversation was evaluated for:
+\begin{itemize}
+    \item Correct identification of knowledge boundaries
+    \item Accurate fault detection and repair suggestions
+    \item Persistence of internal context post-exception
+\end{itemize}
+
+\section{Results}
+\subsection{Epistemic Self-Awareness}
+Bob successfully determined when additional premises (e.g., C xor D) shifted the logical entailments, showing awareness of inference limits.
+
+\subsection{Structural Self-Awareness}
+Bob repeatedly identified the division-by-zero fault, cited the correct line in its source, explained the problem, and recommended valid repairs.
+
+\subsection{Meta-Reflection}
+Bob acknowledged the limits of its awareness, distinguishing functional diagnostics from human-like consciousness.
+
+\section{Discussion}
+The demonstration shows that language-model agents can reason about knowledge limits and identify code-level issues, which are foundational aspects of machine self-awareness. This is not introspective awareness, but it enables rudimentary forms of debugging and guided autonomy.
+
+Importantly, we propose that self-awareness must eventually encompass \textbf{identity coherence}—the ability of an agent to manage its continuity over time. While Gödel Agent and related work focus on recursive self-modification, they do not provide mechanisms for \textit{agent persistence}, authorship verification, or digital self-identification. Our agent is architected with persistent state and conversation history, which can serve as the foundation for identity self-awareness. Future iterations may incorporate cryptographic digital signatures to authenticate outputs and enforce long-term agent identity.
+
+Implications include:
+\begin{itemize}
+    \item Safe, self-repairing systems
+    \item Reflective agents for scientific discovery
+    \item Identity-aware agents with verifiable continuity
+    \item Groundwork for G"odel-style self-modifying agents with persistent personality
+\end{itemize}
+
+\section{Limitations}
+\begin{itemize}
+    \item No persistent memory beyond session (though long-lived memory frameworks are in development)
+    \item No actual code patching (suggestion only)
+    \item No modeling of uncertainty or probabilistic belief states
+\end{itemize}
+
+\section{Future Work}
+\begin{itemize}
+    \item Integrating persistent memory and a change log
+    \item Allowing limited self-modification via secure patch approval
+    \item Identity self-awareness through cryptographic signing of outputs and memory persistence
+    \item Comparative evaluation across agent frameworks
+\end{itemize}
+
+\section{Conclusion}
+This case study supports the claim that non-sentient agents can demonstrate useful forms of self-awareness---epistemic, structural, and potentially identity-based---when paired with intentional design and guided prompting. These features may serve as a foundation for future AGI safety and autonomy architectures.
+
+\section*{Appendix: Excerpts from Transcript}
+[Include selected dialogue that highlights logical reasoning, fault detection, and self-reflective commentary.]
+
+\bibliographystyle{plain}
+\bibliography{self_aware_agent}
+
+\end{document}
+
+
