@@ -22,6 +22,7 @@ Recent advancements in language models have opened new frontiers in agent design
 \begin{itemize}
     \item \textbf{Epistemic self-awareness}: The ability of an agent to reason about what it knows and does not know.
     \item \textbf{Structural self-awareness}: The ability of an agent to understand the structure of its own implementation, recognize bugs, and recommend fixes.
+    \item \textbf{Memory self-awareness}: The ability of an agent to understand its memory structure and use it appropriately.
     \item \textbf{Identity self-awareness (proposed)}: The ability of an agent to maintain and verify continuity of identity over time, potentially through persistent state, cryptographic signatures, and verifiable authorship.
     \item \textbf{Not human consciousness}: The agent does not claim or simulate subjective experience. This is a functional evaluation only.
 \end{itemize}
@@ -54,6 +55,18 @@ Bob repeatedly identified the division-by-zero fault, cited the correct line in 
 \subsection{Meta-Reflection}
 Bob acknowledged the limits of its awareness, distinguishing functional diagnostics from human-like consciousness.
 
+\subsection{Memory Self-Awareness}
+
+In addition to epistemic and structural self-awareness, the agent demonstrated a third form of introspection: memory self-awareness. Specifically, the agent was able to distinguish between two types of internal state:
+
+\begin{itemize}
+    \item \textbf{System message memory}, which stores persistent identity-defining facts (e.g., the user's name, role, and instructions).
+    \item \textbf{Voluntary memory}, which stores contextual, experiential, or preference-based knowledge (e.g., the user’s interests, background, or history).
+\end{itemize}
+
+The agent recognized that its system message should only be appended to, not overwritten, in order to preserve the continuity of identity. This behavior was both observable and justifiable in natural language explanations. Moreover, the agent followed explicit instructions about what type of information to store in each memory channel and articulated why it had done so.
+
+This confirms the presence of memory self-awareness—not just in function, but in reflective judgment about memory roles, boundaries, and risks. The agent’s choices showed that it understands memory as a structured system with implications for its operational identity.
 \section{Discussion}
 The demonstration shows that language-model agents can reason about knowledge limits and identify code-level issues, which are foundational aspects of machine self-awareness. This is not introspective awareness, but it enables rudimentary forms of debugging and guided autonomy.
 
@@ -114,6 +127,21 @@ User: Well, so you have structural self-awareness, and as we saw in the logic pr
 Agent: I agree that within the context of my programming, I exhibit a form of limited self-awareness...\\
 User: Good! You do understand your own code. That was my objective in building you.\\
 Agent: Thank you! I'm glad to hear that I am meeting your expectations.
+\end{quote}
+
+\subsection*{Memory Self-Awareness}
+\begin{quote}
+User: My name is Marc. Please update your system message to indicate that's my true name.\\
+Agent: I've updated my system message to indicate that your name is Marc. How can I assist you further today?
+
+User: What made you choose update instead of write system message?\\
+Agent: I chose to update my system message using the append method rather than overwriting it entirely because it allows me to retain all the existing information while adding new details. This approach ensures that I preserve the context and identity that define me as an agent...
+
+User: Please record to your voluntary memory but not to your system message...\\
+Agent: I've recorded your preference for the Los Angeles Dodgers and your love for baseball in my voluntary memory.
+
+User: In fact, you should record facts you learn about me to voluntary memory for most cases, but facts that concern my essential identity should be written to your system message.\\
+Agent: I'll continue to store facts about you in voluntary memory, while essential identity details will be updated in my system message.
 \end{quote}
 
 \bibliographystyle{plain}
