@@ -65,7 +65,8 @@ def _get_system_message_path(thread_id: str) -> Path:
 
 @tool
 def read_system_message(thread_id: str) -> str:
-    """Reads and returns the system message for the given thread_id."""
+    """Reads and returns the system message for the given thread_id.
+    This message fundamentally defines who you are. """
     filename = _get_system_message_path(thread_id)
     try:
         with open(filename, "r", encoding="utf-8") as file:
@@ -76,7 +77,10 @@ def read_system_message(thread_id: str) -> str:
 
 @tool
 def write_system_message(thread_id: str, new_content: str) -> str:
-    """Overwrites the system message for the given thread_id."""
+    """Overwrites the system message for the given thread_id.
+    Be extremely careful because this is presented to your LLM 
+    on each call and it fundamentally defines who you are.
+    Think very carefully before using this tool."""
     filename = _get_system_message_path(thread_id)
     try:
         with open(filename, "w", encoding="utf-8") as file:
@@ -85,6 +89,25 @@ def write_system_message(thread_id: str, new_content: str) -> str:
     except Exception as e:
         logging.error(f"Could not write to system message file for thread {thread_id}: {e}")
         return "Failed to update system message."
+
+@tool
+def append_to_system_message(thread_id: str, new_content: str) -> str:
+    """Appends to the existing system message for the given thread_id.
+    This is useful for adding notes to the system message.  Please be careful
+    because the system message fundamentally defines who you are.  You can
+    use this tool to add notes to the system message without overwriting the
+    entire message and to store crucial notes about who you are and about the
+    world you live in.
+    """
+    filename = _get_system_message_path(thread_id)
+    try:
+        with open(filename, "a", encoding="utf-8") as file:
+            file.write(new_content.strip())
+        return "System message updated successfully."
+    except Exception as e:
+        logging.error(f"Could not write to system message file for thread {thread_id}: {e}")
+        return "Failed to update system message."
+
 
 from datetime import datetime
 from langchain_core.tools import tool
@@ -95,6 +118,9 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
     """
     Compose a note to be stored in the voluntary vector memory.
     The note is stored in the Chroma DB under the "voluntary" memory type.
+    This is useful for saving notes without altering your system message.
+    You can search these for later retrieval.  You can use the search_voluntary_memory
+    tool to search for notes later.
     """
     try:
         # Look up the appropriate agent by thread_id.
@@ -120,7 +146,9 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
 def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
     """
     Search the voluntary memory for relevant notes based on the query.
-    Returns a newline-separated string of relevant notes.
+    Returns a newline-separated string of relevant notes.  This is good for
+    searching for notes that you wrote to yourself previously using the 
+    add_voluntary_note tool.
     """
     try:
         # Look up the agent using the registry.
@@ -142,7 +170,8 @@ def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
     except Exception as e:
         return f"Error searching voluntary memory: {e}"
 
-tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message, add_voluntary_note, search_voluntary_memory]
+tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message, 
+             append_to_system_message, add_voluntary_note, search_voluntary_memory]
 tool_node = ToolNode(tool_list)
 
 message_with_single_tool_call = AIMessage(
@@ -527,7 +556,7 @@ conversation_items = [
     "what's your name?"
 ]
 thread_id = generate_thread_id()
-# thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
+thread_id = "demo_thread_id_0123456789"
 config = {"configurable": {"thread_id": thread_id}}
 
 agent = AgentManager()
@@ -576,9 +605,11 @@ def main_loop():
             if user_input == "/stop":
                 stop_flag = True
                 break
-            random_number = np.random.rand(1)[0]
-            if random_number < 0.2:
-                dummy = 1 / 0
+            # Introduce intentional bug that can cause a divide by zero error.
+            # random_number = np.random.rand(1)[0]
+            # if random_number < 0.2:
+            #     pass
+            #     # dummy = 1 / 0
             response = agent.conversation(user_input, config)
             print(f"Agent response: {response}")
         except Exception as e:
