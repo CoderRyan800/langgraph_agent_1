@@ -247,7 +247,7 @@ class OpenAIEmbedding:
             raise
 
 class AgentManager:
-    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=6, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
+    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=40, messages_to_keep = 30, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
         """
         Initialize the AgentManager with model configuration, memory saver, and ChromaDBManager.
         :param model_name: Name of the language model to use.
@@ -259,6 +259,7 @@ class AgentManager:
         self.memory = MemorySaver()
         self.model = ChatOpenAI(model=model_name, temperature=temperature).bind_tools(tool_list)
         self.messages_before_summary = messages_before_summary
+        self.messages_to_keep = messages_to_keep
         self.app = self._create_workflow()
 
         # New attribute: ChromaDBManager instance
@@ -341,7 +342,7 @@ class AgentManager:
         response = self.model.invoke(messages)
         new_summary = response.content
 
-        NUM_MESSAGES_TO_KEEP = 2
+        NUM_MESSAGES_TO_KEEP = self.messages_to_keep
         old_messages_to_remove = [
             RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
         ]
@@ -408,9 +409,10 @@ class AgentManager:
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
         chunk = get_sliding_window_chunk(messages, turns)
         aggregated_text = aggregate_chunk(chunk)
-        chunk_text = f"{datetime.now(UTC).isoformat()}: {aggregated_text}"
+        current_utc_time = datetime.now(UTC).isoformat()
+        chunk_text = f"{current_utc_time}: {aggregated_text}"
         chunk_embedding = self.embedder.embed(chunk_text)
-        unique_id = f"{thread_id}_chunk_{datetime.now(UTC).isoformat()}"
+        unique_id = f"{thread_id}_chunk_{current_utc_time}"
         mandatory_db.add(
             documents=[chunk_text],
             embeddings=[chunk_embedding],
@@ -420,7 +422,8 @@ class AgentManager:
     def chat(self, message: str, config: dict = None):
         if config is None:
             config = {"configurable": {"thread_id": "default"}}
-        
+        current_utc_time = datetime.now(UTC).isoformat()
+        message = f"Current Message at UTC Time: {current_utc_time}: {message}"
         thread_id = config["configurable"]["thread_id"]
         self.current_thread_id = thread_id  # Save the current thread_id for later use
 
