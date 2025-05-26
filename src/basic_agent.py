@@ -247,7 +247,7 @@ class OpenAIEmbedding:
             raise
 
 class AgentManager:
-    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=40, messages_to_keep = 30, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
+    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=10, messages_to_keep = 5, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
         """
         Initialize the AgentManager with model configuration, memory saver, and ChromaDBManager.
         :param model_name: Name of the language model to use.
@@ -340,7 +340,8 @@ class AgentManager:
         logging.info("\nDEBUG: End messages to be summarized\n")
 
         response = self.model.invoke(messages)
-        new_summary = response.content
+        current_utc_time = datetime.now(UTC).isoformat()
+        new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
 
         NUM_MESSAGES_TO_KEEP = self.messages_to_keep
         old_messages_to_remove = [
@@ -392,7 +393,13 @@ class AgentManager:
                         "You will then be given the next chunk of the file and you will need to process it."
                         "You will continue this process until you have read the entire file."
                         "You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file."
-                        "Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code.")
+                        "Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code."
+                        "Pay attention to UTC timestamps that prepend the user messages.  And pay attention to the UTC timestamps that are used to label messages, summaries, and vector memory."
+                        "These timestamps are crucial.  for example, if you are told an object was in a room a week ago, that may no longer be true."
+                        "If you were told that someone was President or Prime Minister 12 years ago, that also may no longer be true."
+                        "As an intelligent agent you must evaluate timestamped memory in the context of the time of the latest input message "
+                        "and apply good judgment and common sense."
+                        )
                     f.write(system_message)
             with open(filename, "r", encoding="utf-8") as f:
                 system_message = f.read().strip()
@@ -410,7 +417,7 @@ class AgentManager:
         chunk = get_sliding_window_chunk(messages, turns)
         aggregated_text = aggregate_chunk(chunk)
         current_utc_time = datetime.now(UTC).isoformat()
-        chunk_text = f"{current_utc_time}: {aggregated_text}"
+        chunk_text = f"Memory Chunk Timestamp: {current_utc_time}: {aggregated_text}"
         chunk_embedding = self.embedder.embed(chunk_text)
         unique_id = f"{thread_id}_chunk_{current_utc_time}"
         mandatory_db.add(
@@ -559,7 +566,7 @@ conversation_items = [
     "what's your name?"
 ]
 thread_id = generate_thread_id()
-thread_id = "demo_thread_id_0123456789"
+thread_id = "demo_thread_id_25_May_2025_1"
 config = {"configurable": {"thread_id": thread_id}}
 
 agent = AgentManager()
