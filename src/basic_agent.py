@@ -130,7 +130,7 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
         
         voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
         timestamp = datetime.now(UTC).isoformat()
-        note_text = f"{timestamp}: {note}"
+        note_text = f"Voluntary Note Timestamp: {timestamp}: {note}"
         note_embedding = agent.embedder.embed(note_text)
         unique_id = f"{thread_id}_voluntary_{timestamp}"
         voluntary_db.add(
@@ -417,7 +417,7 @@ class AgentManager:
         chunk = get_sliding_window_chunk(messages, turns)
         aggregated_text = aggregate_chunk(chunk)
         current_utc_time = datetime.now(UTC).isoformat()
-        chunk_text = f"Memory Chunk Timestamp: {current_utc_time}: {aggregated_text}"
+        chunk_text = f"Mandatory Memory Chunk Timestamp: {current_utc_time}: {aggregated_text}"
         chunk_embedding = self.embedder.embed(chunk_text)
         unique_id = f"{thread_id}_chunk_{current_utc_time}"
         mandatory_db.add(
