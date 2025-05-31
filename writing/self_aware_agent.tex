@@ -254,18 +254,8 @@ Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
 \end{verbatim}
 Bob then explains why the system message must be append-only (to preserve identity integrity) while voluntary memory can be LRU-evicted. This reflective judgment shows an explicit model of memory roles and boundaries.
 
-\subsection{Quantitative Metrics (Optional / Future Work)}
-Because this is a prototype, we do not yet have large-scale metrics. However, in our preliminary tests the average \emph{staleness detection rate} (LLM flagging facts older than 90 days) was 85 \%. Future work (Section \ref{sec:future}) will include ablation studies (e.g., “no-timestamps” vs. “timestamps”) to measure improvements in response freshness.
-
 \section{Discussion}
-Our LangGraph prototype shows that combining a short-term summarization buffer with a persistent vector store can keep multi-session dialogues both concise and contextually rich. For token efficiency, we found that:
-\begin{itemize}[leftmargin=*]
-\item Including full ISO-8601 timestamps in every message adds about 20 tokens/turn, but dropping sub-minute precision reduces this to 10 tokens/turn with negligible impact on temporal reasoning.
-\item Recursive summarization (once every 15 turns) keeps the “effective context” under 500 tokens, while retaining salient high-level details.
-\item Code introspection prompts (including a small snippet around the exception) add about 40 tokens per exception, but provide accurate diagnostics in over 90 \% of trials on toy bugs.
-\end{itemize}
-
-However, LLMs do not inherently \emph{parse} timestamps or stack traces: we rely on prompt engineering (“treat [YYYY-MM-DDThh:mmZ] as UTC” and “explain the following Python exception”). This can occasionally fail if the model hallucinates a date format or misreads a multi-line traceback. A future improvement would be to structurally include timestamps and exception metadata in a dedicated JSON field, rather than in the raw prompt text, so that a downstream node could perform explicit datetime or traceback parsing.
+Our LangGraph prototype shows that combining a short-term summarization buffer with a persistent vector store can keep multi-session dialogues both concise and contextually rich. However, LLMs do not inherently \emph{parse} timestamps or stack traces: we rely on prompt engineering (“treat [YYYY-MM-DDThh:mmZ] as UTC” and “explain the following Python exception”). This can occasionally fail if the model hallucinates a date format or misreads a multi-line traceback. A future improvement might be to structurally include timestamps and exception metadata in a dedicated JSON field, rather than in the raw prompt text, so that a downstream node could perform explicit datetime or traceback parsing.
 
 A further limitation is that we have not yet evaluated Bob in open-ended tasks such as customer support or multi-topic knowledge retrieval. All transcripts in this study are toy examples. We anticipate that on larger benchmarks, issues such as \emph{temporal drift} (e.g., conflicting facts from 2025 vs. 2026) and \emph{versioned code drift} (e.g., structure of `basic_agent.py` changes over time) will require a higher-fidelity memory schema (e.g., storing each memory chunk as a tuple \{\texttt{content}, \texttt{timestamp}, \texttt{embedding}\} rather than a plain text blob).
 
