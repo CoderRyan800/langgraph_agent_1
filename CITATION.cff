@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this project or refer to its ideas, please cite the following work:"
+title: "Demonstrating Epistemic, Structural, and Identity-Oriented Self-Awareness in a Language-Model-Based Software Agent"
+authors:
+  - family-names: Mukai
+    given-names: Ryan
+date-released: 2025-04-05
+version: 0.1.0
+repository-code: https://github.com/your-username/your-repo-name
+doi: 10.0000/placeholder-doi  # (optional, if you archive on Zenodo or OSF later)
+keywords:
+  - artificial intelligence
+  - language models
+  - self-awareness
+  - epistemic reasoning
+  - agent architecture
+  - Gödel agent
+license: MIT
