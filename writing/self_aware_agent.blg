@@ -1,48 +1,46 @@
 This is BibTeX, Version 0.99d (TeX Live 2025)
 Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: self_aware_agent.aux
-The style file: plain.bst
-I found no \citation commands---while reading file self_aware_agent.aux
+The style file: unsrt.bst
 Database file #1: self_aware_agent.bib
-You've used 0 entries,
-            2118 wiz_defined-function locations,
-            496 strings with 4005 characters,
-and the built_in function-call counts, 18 in all, are:
-= -- 0
-> -- 0
-< -- 0
-+ -- 0
-- -- 0
-* -- 2
-:= -- 7
-add.period$ -- 0
-call.type$ -- 0
-change.case$ -- 0
+You've used 8 entries,
+            1791 wiz_defined-function locations,
+            495 strings with 4761 characters,
+and the built_in function-call counts, 1945 in all, are:
+= -- 169
+> -- 76
+< -- 2
++ -- 29
+- -- 21
+* -- 96
+:= -- 279
+add.period$ -- 22
+call.type$ -- 8
+change.case$ -- 8
 chr.to.int$ -- 0
-cite$ -- 0
-duplicate$ -- 0
-empty$ -- 1
-format.name$ -- 0
-if$ -- 1
+cite$ -- 8
+duplicate$ -- 100
+empty$ -- 200
+format.name$ -- 21
+if$ -- 461
 int.to.chr$ -- 0
-int.to.str$ -- 0
-missing$ -- 0
-newline$ -- 3
-num.names$ -- 0
-pop$ -- 0
+int.to.str$ -- 8
+missing$ -- 5
+newline$ -- 41
+num.names$ -- 8
+pop$ -- 37
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 0
-skip$ -- 1
+skip$ -- 75
 stack$ -- 0
-substring$ -- 0
-swap$ -- 0
-text.length$ -- 0
+substring$ -- 119
+swap$ -- 44
+text.length$ -- 2
 text.prefix$ -- 0
 top$ -- 0
 type$ -- 0
 warning$ -- 0
-while$ -- 0
-width$ -- 0
-write$ -- 2
-(There was 1 error message)
+while$ -- 13
+width$ -- 9
+write$ -- 83
