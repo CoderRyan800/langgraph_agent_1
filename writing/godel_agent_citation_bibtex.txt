@@ -1,0 +1,9 @@
+@misc{yin2025godelagentselfreferentialagent,
+      title={G\"odel Agent: A Self-Referential Agent Framework for Recursive Self-Improvement}, 
+      author={Xunjian Yin and Xinyi Wang and Liangming Pan and Xiaojun Wan and William Yang Wang},
+      year={2025},
+      eprint={2410.04444},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2410.04444}, 
+}

@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, ToolMessage, RemoveMessage, AIMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import MessagesState, StateGraph, START, END
+import numpy as np
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
@@ -64,7 +65,8 @@ def _get_system_message_path(thread_id: str) -> Path:
 
 @tool
 def read_system_message(thread_id: str) -> str:
-    """Reads and returns the system message for the given thread_id."""
+    """Reads and returns the system message for the given thread_id.
+    This message fundamentally defines who you are. """
     filename = _get_system_message_path(thread_id)
     try:
         with open(filename, "r", encoding="utf-8") as file:
@@ -75,7 +77,10 @@ def read_system_message(thread_id: str) -> str:
 
 @tool
 def write_system_message(thread_id: str, new_content: str) -> str:
-    """Overwrites the system message for the given thread_id."""
+    """Overwrites the system message for the given thread_id.
+    Be extremely careful because this is presented to your LLM 
+    on each call and it fundamentally defines who you are.
+    Think very carefully before using this tool."""
     filename = _get_system_message_path(thread_id)
     try:
         with open(filename, "w", encoding="utf-8") as file:
@@ -84,6 +89,25 @@ def write_system_message(thread_id: str, new_content: str) -> str:
     except Exception as e:
         logging.error(f"Could not write to system message file for thread {thread_id}: {e}")
         return "Failed to update system message."
+
+@tool
+def append_to_system_message(thread_id: str, new_content: str) -> str:
+    """Appends to the existing system message for the given thread_id.
+    This is useful for adding notes to the system message.  Please be careful
+    because the system message fundamentally defines who you are.  You can
+    use this tool to add notes to the system message without overwriting the
+    entire message and to store crucial notes about who you are and about the
+    world you live in.
+    """
+    filename = _get_system_message_path(thread_id)
+    try:
+        with open(filename, "a", encoding="utf-8") as file:
+            file.write(new_content.strip())
+        return "System message updated successfully."
+    except Exception as e:
+        logging.error(f"Could not write to system message file for thread {thread_id}: {e}")
+        return "Failed to update system message."
+
 
 from datetime import datetime
 from langchain_core.tools import tool
@@ -94,6 +118,9 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
     """
     Compose a note to be stored in the voluntary vector memory.
     The note is stored in the Chroma DB under the "voluntary" memory type.
+    This is useful for saving notes without altering your system message.
+    You can search these for later retrieval.  You can use the search_voluntary_memory
+    tool to search for notes later.
     """
     try:
         # Look up the appropriate agent by thread_id.
@@ -103,7 +130,7 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
         
         voluntary_db = agent.chroma_manager.get_chroma_instance(thread_id, "voluntary")
         timestamp = datetime.now(UTC).isoformat()
-        note_text = f"{timestamp}: {note}"
+        note_text = f"Voluntary Note Timestamp: {timestamp}: {note}"
         note_embedding = agent.embedder.embed(note_text)
         unique_id = f"{thread_id}_voluntary_{timestamp}"
         voluntary_db.add(
@@ -119,7 +146,9 @@ def add_voluntary_note(thread_id: str, note: str) -> str:
 def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
     """
     Search the voluntary memory for relevant notes based on the query.
-    Returns a newline-separated string of relevant notes.
+    Returns a newline-separated string of relevant notes.  This is good for
+    searching for notes that you wrote to yourself previously using the 
+    add_voluntary_note tool.
     """
     try:
         # Look up the agent using the registry.
@@ -141,7 +170,8 @@ def search_voluntary_memory(thread_id: str, query: str, k: int = 5) -> str:
     except Exception as e:
         return f"Error searching voluntary memory: {e}"
 
-tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message, add_voluntary_note, search_voluntary_memory]
+tool_list = [get_weather, get_coolest_cities, read_system_message, write_system_message, 
+             append_to_system_message, add_voluntary_note, search_voluntary_memory]
 tool_node = ToolNode(tool_list)
 
 message_with_single_tool_call = AIMessage(
@@ -217,7 +247,7 @@ class OpenAIEmbedding:
             raise
 
 class AgentManager:
-    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=6, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
+    def __init__(self, model_name="gpt-4o", temperature=0, messages_before_summary=10, messages_to_keep = 5, chroma_base_path="data/chroma_dbs", log_level=logging.INFO):
         """
         Initialize the AgentManager with model configuration, memory saver, and ChromaDBManager.
         :param model_name: Name of the language model to use.
@@ -229,6 +259,7 @@ class AgentManager:
         self.memory = MemorySaver()
         self.model = ChatOpenAI(model=model_name, temperature=temperature).bind_tools(tool_list)
         self.messages_before_summary = messages_before_summary
+        self.messages_to_keep = messages_to_keep
         self.app = self._create_workflow()
 
         # New attribute: ChromaDBManager instance
@@ -275,7 +306,7 @@ class AgentManager:
         for index in range(len(messages)):
             #logging.info(f"Message {index}: ")
             logging.info(messages[index].pretty_print())
-        logging.info("DEBUG: End messages at call model node\n")
+        logging.info("\nDEBUG: End messages at call model node\n")
 
         response = self.model.invoke(messages)
         return {"messages": [response]}
@@ -306,12 +337,13 @@ class AgentManager:
         logging.info("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
         for index, msg in enumerate(messages):
             logging.info(f"Message {index}: {msg.pretty_print()}")
-        logging.info("DEBUG: End messages to be summarized\n")
+        logging.info("\nDEBUG: End messages to be summarized\n")
 
         response = self.model.invoke(messages)
-        new_summary = response.content
+        current_utc_time = datetime.now(UTC).isoformat()
+        new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
 
-        NUM_MESSAGES_TO_KEEP = 2
+        NUM_MESSAGES_TO_KEEP = self.messages_to_keep
         old_messages_to_remove = [
             RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
         ]
@@ -361,7 +393,13 @@ class AgentManager:
                         "You will then be given the next chunk of the file and you will need to process it."
                         "You will continue this process until you have read the entire file."
                         "You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file."
-                        "Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code.")
+                        "Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code."
+                        "Pay attention to UTC timestamps that prepend the user messages.  And pay attention to the UTC timestamps that are used to label messages, summaries, and vector memory."
+                        "These timestamps are crucial.  for example, if you are told an object was in a room a week ago, that may no longer be true."
+                        "If you were told that someone was President or Prime Minister 12 years ago, that also may no longer be true."
+                        "As an intelligent agent you must evaluate timestamped memory in the context of the time of the latest input message "
+                        "and apply good judgment and common sense."
+                        )
                     f.write(system_message)
             with open(filename, "r", encoding="utf-8") as f:
                 system_message = f.read().strip()
@@ -378,9 +416,10 @@ class AgentManager:
         mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
         chunk = get_sliding_window_chunk(messages, turns)
         aggregated_text = aggregate_chunk(chunk)
-        chunk_text = f"{datetime.now(UTC).isoformat()}: {aggregated_text}"
+        current_utc_time = datetime.now(UTC).isoformat()
+        chunk_text = f"Mandatory Memory Chunk Timestamp: {current_utc_time}: {aggregated_text}"
         chunk_embedding = self.embedder.embed(chunk_text)
-        unique_id = f"{thread_id}_chunk_{datetime.now(UTC).isoformat()}"
+        unique_id = f"{thread_id}_chunk_{current_utc_time}"
         mandatory_db.add(
             documents=[chunk_text],
             embeddings=[chunk_embedding],
@@ -390,7 +429,8 @@ class AgentManager:
     def chat(self, message: str, config: dict = None):
         if config is None:
             config = {"configurable": {"thread_id": "default"}}
-        
+        current_utc_time = datetime.now(UTC).isoformat()
+        message = f"Current Message at UTC Time: {current_utc_time}: {message}"
         thread_id = config["configurable"]["thread_id"]
         self.current_thread_id = thread_id  # Save the current thread_id for later use
 
@@ -403,7 +443,7 @@ class AgentManager:
             flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
             relevant_context = "\n".join(flattened_documents)
 
-        full_input = f"{relevant_context}\n{message}" if relevant_context else message
+        full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nCURRENT INPUT MESSAGE:\n{message}" if relevant_context else message
         input_message = HumanMessage(content=full_input)
         response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
         
@@ -432,9 +472,9 @@ class AgentManager:
     # NEW CODE BELOW: File Reading & Chunking via Conversation Interface
     # ============================================================================
 
-    def read_file(self, file_path: str, chunk_size: int, overlap: int):
+    def read_own_source_code(self, file_path: str, chunk_size: int, overlap: int):
         """
-        Reads in a file from the given file path, breaks it into overlapping chunks,
+        Reads in the agent's own source code from the given file path, breaks it into overlapping chunks,
         and feeds each chunk into the conversation interface over three passes.
         
         Each chunk is prefixed with:
@@ -526,7 +566,7 @@ conversation_items = [
     "what's your name?"
 ]
 thread_id = generate_thread_id()
-# thread_id = "a029d1e8-f251-4b06-812f-46e6220e6d8b"
+thread_id = "demo_thread_id_25_May_2025_1"
 config = {"configurable": {"thread_id": thread_id}}
 
 agent = AgentManager()
@@ -561,15 +601,50 @@ example_file_path = "src/basic_agent.py"
 
 # Now, call the new read_file method with desired chunk size and overlap.
 # For example, chunk_size is 100 characters and overlap is 20 characters.
-final_summary = agent.read_file(example_file_path, chunk_size=2500, overlap=500)
-print("Final summary of the file:", final_summary)
 
-stop_flag = False
-while not stop_flag:
-    user_input = input("Enter a message to the agent: ")
-    if user_input == "/stop":
-        stop_flag = True
-        break
-    response = agent.conversation(user_input, config)
-    print(f"Agent response: {response}")
+def main_loop():
+    final_summary = agent.read_own_source_code(example_file_path, chunk_size=2500, overlap=500)
+    print("Final summary of the file:", final_summary)  
+    stop_flag = False
+    # Introduce intentional bug that can cause a divide by zero error.
+    while not stop_flag:
+        try:
+            # Your existing conversation handling code.
+            # For example:
+            user_input = input("Enter a message to the agent: ")
+            if user_input == "/stop":
+                stop_flag = True
+                break
+            # Introduce intentional bug that can cause a divide by zero error.
+            # random_number = np.random.rand(1)[0]
+            # if random_number < 0.2:
+            #     pass
+            #     # dummy = 1 / 0
+            response = agent.conversation(user_input, config)
+            print(f"Agent response: {response}")
+        except Exception as e:
+            # Capture the full stack trace and the error message
+            stack_trace = traceback.format_exc()
+            error_message = str(e)
+            
+            # Prepare a meta message containing the error details
+            meta_message = (
+                "An exception occurred during the conversation loop.\n"
+                "Error Message: {}\n"
+                "Stack Trace:\n{}\n\n"
+                "Based on your knowledge of your own source code, please analyze the issue and suggest a solution."
+            ).format(error_message, stack_trace)
+            
+            # Instead of simply logging, send the meta message into the conversation interface.
+            # Depending on your implementation, this could mean calling your agent's conversation method.
+            response = agent.conversation(meta_message, config)
+            print("Agent (Exception Handler):", meta_message)
+            print(f"Agent exception handling response: {response}")
+            # Optionally, you could also choose to continue or exit the loop.
+            # For example, to continue:
+            continue
+            # Or to break the loop:
+            # break
 
+if __name__ == "__main__":
+    main_loop()
