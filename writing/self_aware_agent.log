@@ -1,8 +1,8 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  31 MAY 2025 16:26
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  21 JUN 2025 16:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**self_aware_agent
+**self_aware_agent.tex
 (./self_aware_agent.tex
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
@@ -553,14 +553,14 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 
 {/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/loc
 al/texlive/2025/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc}]
-Overfull \hbox (34.41235pt too wide) in paragraph at lines 71--72
+Overfull \hbox (34.41235pt too wide) in paragraph at lines 68--69
 []\OT1/cmr/m/n/10.95 We re-lease a work-ing Python pro-to-type (avail-able at [
 ]$\OT1/cmtt/m/n/10.95 https : / / github . com / rmukai / langgraph-[]agent$[]\
 OT1/cmr/m/n/10.95 ),
  []
 
 
-Overfull \hbox (3.60368pt too wide) in paragraph at lines 81--82
+Overfull \hbox (3.60368pt too wide) in paragraph at lines 78--79
 \OT1/cmr/m/n/10.95 Retrieval-augmented gen-er-a-tion (RAG) ap-proaches such as 
 [[]] store large cor-pora in vec-tor databases
  []
@@ -568,25 +568,15 @@ Overfull \hbox (3.60368pt too wide) in paragraph at lines 81--82
 
 
 [2]
-
-LaTeX Warning: File `workflow_diagram.png' not found on input line 99.
-
-
-! Package pdftex.def Error: File `workflow_diagram.png' not found: using draft 
-setting.
-
-See the pdftex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.99 ...width=0.9\linewidth]{workflow_diagram.png}
-                                                  
-? R
-OK, entering \nonstopmode...
+<conversation_flow.jpg, id=142, 461.725pt x 465.74pt>
+File: conversation_flow.jpg Graphic file (type jpg)
+<use conversation_flow.jpg>
+Package pdftex.def Info: conversation_flow.jpg  used on input line 96.
+(pdftex.def)             Requested size: 422.77664pt x 426.4535pt.
 
 
 [3]
-Overfull \hbox (75.03737pt too wide) in paragraph at lines 111--112
+Overfull \hbox (75.03737pt too wide) in paragraph at lines 108--109
 []\OT1/cmr/m/n/10.95 On each new hu-man turn, the work-flow checks whether \OT1
 /cmtt/m/n/10.95 len(state["messages"]) $\OML/cmm/m/it/10.95 >$ \OT1/cmtt/m/n/10
 .95 messages[]before[]summary
@@ -599,68 +589,27 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.116   \item W
-               rites the new summary to \texttt{state["summary"]}.]
+l.113   \item W
+               rites the new summary to \texttt{state["summary"]}. <./conversat
+ion_flow.jpg>]
 
 [5]
-! Missing $ inserted.
-<inserted text> 
-                $
-l.183 ...le to locate its own source file (`basic_
-                                                  agent.py`) and identify th...
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-
-! LaTeX Error: Command \item invalid in math mode.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.184   \item
-              Constructs a prompt for the LLM of the form:
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.184   \item C
-               onstructs a prompt for the LLM of the form:
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-
-Overfull \hbox (167.95944pt too wide) in paragraph at lines 183--184
-[]\OT1/cmr/m/n/10.95 Uses Python's \OT1/cmtt/m/n/10.95 inspect \OT1/cmr/m/n/10.
-95 mod-ule to lo-cate its own source file (`basic$[]\OML/cmm/m/it/10.95 gent:py
-\OT1/cmr/m/n/10.95 `)\OML/cmm/m/it/10.95 andidentifythelinenumberassociatedwith
-theexception:
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 183--184
-
- []
-
-
 
 [6]
-Overfull \hbox (7.38606pt too wide) in paragraph at lines 221--221
+Overfull \hbox (7.38606pt too wide) in paragraph at lines 220--220
 []\OT1/cmtt/m/n/10.95 Agent: Given only \A implies C" and \D is true," I cannot
  conclusively determine A.[] 
  []
 
 
-Overfull \hbox (82.02869pt too wide) in paragraph at lines 221--221
+Overfull \hbox (82.02869pt too wide) in paragraph at lines 220--220
 []\OT1/cmtt/m/n/10.95 Agent: Since D is true, C must be false. From A \TS1/cmtt
 /m/n/10.95 ^^Y \OT1/cmtt/m/n/10.95 C, A cannot be true (or else C would be true
 ),[] 
  []
 
 
-Overfull \hbox (18.88344pt too wide) in paragraph at lines 233--233
+Overfull \hbox (18.88344pt too wide) in paragraph at lines 232--232
 []     \OT1/cmtt/m/n/10.95 That information is now 90+ days old|are you asking 
 about its current condition?[] 
  []
@@ -668,102 +617,76 @@ about its current condition?[]
 
 
 [7]
-! Missing $ inserted.
-<inserted text> 
-                $
-l.260 ...d code drift} (e.g., structure of `basic_
-                                                  agent.py` changes over tim...
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.261 
-      
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-
-Overfull \hbox (15.72673pt too wide) in paragraph at lines 260--261
-\OT1/cmr/m/n/10.95 2026) and \OT1/cmr/m/it/10.95 ver-sioned code drift \OT1/cmr
-/m/n/10.95 (e.g., struc-ture of `basic$[]\OML/cmm/m/it/10.95 gent:py\OT1/cmr/m/
-n/10.95 `\OML/cmm/m/it/10.95 changesovertime\OT1/cmr/m/n/10.95 )\OML/cmm/m/it/1
-0.95 willrequireahigher \OMS/cmsy/m/n/10.95 ^^@
- []
-
-
-Overfull \hbox (135.03078pt too wide) in paragraph at lines 260--261
-\OML/cmm/m/it/10.95 fidelitymemoryschema\OT1/cmr/m/n/10.95 (\OML/cmm/m/it/10.95
- e:g:; storingeachmemorychunkasatuple\OMS/cmsy/m/n/10.95 f[]\OML/cmm/m/it/10.95
- ; []; []\OMS/cmsy/m/n/10.95 g\OML/cmm/m/it/10.95 ratherthanaplaintextblob\OT1/
-cmr/m/n/10.95 )\OML/cmm/m/it/10.95 :$ 
- []
-
-
 
 [8]
-Overfull \hbox (18.79312pt too wide) in paragraph at lines 291--291
+Overfull \hbox (18.79312pt too wide) in paragraph at lines 286--286
 []\OT1/cmtt/m/n/10.95 Agent: Since D is true, C must be false. From A \TS1/cmtt
 /m/n/10.95 ^^Y \OT1/cmtt/m/n/10.95 C, A cannot be true, so A is false.[] 
  []
 
 
-Overfull \hbox (18.88344pt too wide) in paragraph at lines 300--300
+Overfull \hbox (18.88344pt too wide) in paragraph at lines 295--295
 []     \OT1/cmtt/m/n/10.95 That information is now 90+ days old|are you asking 
 about its current condition?[] 
  []
 
 
-
-[9]
-Overfull \hbox (20.668pt too wide) in paragraph at lines 325--326
+Overfull \hbox (20.668pt too wide) in paragraph at lines 320--321
 []\OT1/cmr/m/n/10.95 Title: Demon-strat-ing Epis-temic, Struc-tural, and Identi
 ty-Oriented Self-Awareness in a LangGraph-
  []
 
-(./self_aware_agent.bbl
 
-[10])
 
-[11] (./self_aware_agent.aux)
+[9] (./self_aware_agent.bbl)
+
+[10] (./self_aware_agent.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
-Package rerunfilecheck Info: File `self_aware_agent.out' has not changed.
-(rerunfilecheck)             Checksum: 9AFD5194FDA2500C403D93E1EDF54BD7;5184.
+
+
+Package rerunfilecheck Warning: File `self_aware_agent.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `self_aware_agent.out':
+(rerunfilecheck)             Before: 6B0DC48EEE62B7C444A5F7BA9D137EED;5134
+(rerunfilecheck)             After:  C215900EB524C9711F9E39AEBF7F2DB7;5040.
  ) 
 Here is how much of TeX's memory you used:
- 15847 strings out of 473190
- 312994 string characters out of 5715801
- 701146 words of memory out of 5000000
- 38849 multiletter control sequences out of 15000+600000
- 571894 words of font info for 86 fonts, out of 8000000 for 9000
+ 15818 strings out of 473190
+ 312210 string characters out of 5715801
+ 700146 words of memory out of 5000000
+ 38823 multiletter control sequences out of 15000+600000
+ 571558 words of font info for 84 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,11n,79p,747b,1181s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb
-></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb>
-</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmitt10.pfb>
-</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><
-/usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></u
+ 75i,11n,79p,630b,1262s stack positions out of 10000i,1000n,20000p,200000b,200000s
+
+pdfTeX warning (dest): name{section.6} has been referenced but does not exist, 
+replaced by a fixed one
+
+</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb><
+/usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></
+usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmitt10.pfb></
+usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></u
 sr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr
 /local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/l
 ocal/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/loc
 al/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/
 texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/local/tex
-live/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texl
-ive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texli
-ve/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texliv
-e/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/texlive/
-2025/texmf-dist/fonts/type1/public/cm-super/sfrm0600.pfb></usr/local/texlive/20
-25/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb></usr/local/texlive/2025
-/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></usr/local/texlive/2025/t
-exmf-dist/fonts/type1/public/cm-super/sftt1095.pfb>
-Output written on self_aware_agent.pdf (11 pages, 258864 bytes).
+live/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texl
+ive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texli
+ve/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/texlive
+/2025/texmf-dist/fonts/type1/public/cm-super/sfrm0600.pfb></usr/local/texlive/2
+025/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb></usr/local/texlive/202
+5/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></usr/local/texlive/2025/
+texmf-dist/fonts/type1/public/cm-super/sftt1095.pfb>
+Output written on self_aware_agent.pdf (10 pages, 255064 bytes).
 PDF statistics:
- 307 PDF objects out of 1000 (max. 8388607)
- 255 compressed objects within 3 object streams
- 67 named destinations out of 1000 (max. 500000)
- 193 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 292 PDF objects out of 1000 (max. 8388607)
+ 244 compressed objects within 3 object streams
+ 65 named destinations out of 1000 (max. 500000)
+ 198 words of extra memory for PDF output out of 10000 (max. 10000000)
 
