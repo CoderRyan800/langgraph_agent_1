@@ -36,10 +36,10 @@
 \begin{abstract}
 We present a prototype conversational agent (“Bob”) built atop LangGraph that combines three complementary self-awareness capabilities:
 (1) \emph{Epistemic self-awareness}: the ability to monitor and reflect on one’s own knowledge state (detecting when inferences are under-determined);
-(2) \emph{Self-aware memory management}: a hybrid memory architecture consisting of a fast in-RAM buffer (with recursive summarization) plus a persistent vector store (“mandatory memory”) that is recalled each turn; and
-(3) \emph{Structural self-awareness}: (a) \emph{Temporal self-awareness} via ISO-8601 UTC timestamps, enabling reasoning about recency and staleness, and (b) \emph{Code-based structural self-awareness} via introspecting its own source and exception traces.
+(2) \emph{Self-aware memory management}: a hybrid memory architecture that includes an agent-controlled vector database memory that an agent explicitly controls; and
+(3) \emph{Structural self-awareness}: particularly \emph{code-based structural self-awareness} via introspecting its own source and exception traces.
 
-We describe Bob’s LangGraph workflow, illustrate how each component is implemented, and discuss token-efficiency trade-offs. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) prompt-engineering patterns that enable LLMs to parse and act upon raw timestamps, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (code available online). We conclude with directions for quantitative evaluation and future work on identity self-awareness.
+We describe Bob’s LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (code available online). We conclude with directions for quantitative evaluation and future work on identity self-awareness.
 \end{abstract}
 
 \textbf{Keywords:} conversational agents; LangGraph; self-awareness; memory management; temporal grounding; code introspection
@@ -48,28 +48,24 @@ We describe Bob’s LangGraph workflow, illustrate how each component is impleme
 \noindent\textbf{ORCID:} \href{https://orcid.org/0000-0002-1234-5678}{0000-0002-1234-5678}
 
 \section{Introduction}
-Language models have recently demonstrated impressive reasoning capabilities, but they can still fail when (a) they lack awareness of knowledge boundaries, (b) their context windows overflow, or (c) they lack an explicit notion of time or internal structure. This paper explores limited self-awareness in a conversational agent—namely, Bob—that is powered by OpenAI’s GPT-4/O models and orchestrated via LangGraph.
+Language models have recently demonstrated impressive reasoning capabilities, and these capabilities enable agents to achieve knowledge of their own knowledge state, the ability to control their own memory, and the ability to comprehend their own code. This paper explores limited self-awareness in a conversational agent (“Bob”) that is powered by OpenAI’s GPT-4o model and orchestrated via LangGraph.
 
 We focus on three complementary forms of self-awareness:
 \begin{itemize}[leftmargin=*]
   \item \textbf{Epistemic self-awareness:} the agent’s ability to recognize when it has insufficient premises (e.g., logical inferences requiring extra assumptions).
-  \item \textbf{Self-aware memory management:} a dual-layer memory that combines (i) a short-term in-RAM buffer with recursive summarization and (ii) a persistent vector store (“mandatory memory”) that retrieves semantically relevant chunks each turn.
+  \item \textbf{Self-aware memory management:} a multiple-layer memory that combines (i) a short-term in-RAM buffer with recursive summarization and (ii) a persistent vector store (“mandatory memory”) that retrieves semantically relevant chunks each turn and (iii) a vector database that the agent explicitly controls.  It is the third component that gives an agent a long-term memory under its own explicit control that can be operated in a self-aware manner.
   \item \textbf{Structural self-awareness:}  
-    \begin{enumerate}[leftmargin=*, label=(\alph*)]
-      \item \emph{Temporal self-awareness:} embedding ISO-8601 UTC timestamps into every message and summary so the LLM can reason about recency and staleness.  
-      \item \emph{Code-based structural self-awareness:} the agent’s ability to introspect its own source code and diagnose runtime exceptions (e.g., Python stack traces).
-    \end{enumerate}
+ {Code-based structural self-awareness:} the agent’s ability to introspect its own source code and diagnose runtime exceptions (e.g., Python stack traces).
 \end{itemize}
 
-These features address two key issues: (1) preventing context explosion by summarizing old messages, and (2) preserving temporal and structural context so that knowledge from 2025 remains distinguishable from “today” (e.g., if the agent is re-invoked in 2030). Although prior work has explored static LSTM-based self-awareness \cite{Mukai2020}, our contribution is a \emph{dynamic}, LLM-driven prototype with hybrid memory, explicit timestamping, and code introspection.
+Although prior work has explored static LSTM-based self-awareness \cite{Mukai2020}, our contribution is a \emph{dynamic}, LLM-driven prototype with hybrid memory, explicit timestamping, and code introspection.
 
 \subsection{Contributions}
 \begin{enumerate}[leftmargin=*]
   \item We present an end-to-end LangGraph workflow that integrates short-term and long-term memory with recursive summarization.
   \item We develop prompt-engineering patterns that encode UTC timestamps, enabling the model to reason about event chronology.
-  \item We implement code-introspection nodes that allow the agent to detect, diagnose, and explain runtime exceptions and to inspect its own source file.
+  \item We implement a code-introspection capability that allows the agent to detect, diagnose, and explain runtime exceptions and to inspect its own source file.
   \item We release a working Python prototype (available at \url{https://github.com/rmukai/langgraph-agent}), demonstrating coherent multi-session dialogues without unbounded context growth.
-  \item We discuss trade-offs (e.g., token overhead vs. precision, staleness detection, and code-analysis accuracy) and outline future directions toward identity self-awareness.
 \end{enumerate}
 
 \section{Related Work}
@@ -78,13 +74,13 @@ These features address two key issues: (1) preventing context explosion by summa
 Static LSTM-based approaches (e.g., \cite{Mukai2020}) presented early proofs of concept for an agent that maintained a small symbolic \emph{knowledge state} and detected “unknown” queries. However, those systems lacked dynamic memory components, timestamping, and code introspection. Our work leverages modern LLMs (GPT-4/O) \cite{ChenGupta2024} and LangGraph to maintain hybrid memory states, timestamped context, and structural code self-awareness.
 
 \subsection{Memory Architectures for Open-Domain Dialogue}
-Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{Sanh2022} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.
+Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{Sanh2022} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.  This is used not only for conversational purposes but also for code introspection, allowing the agent to read its own codebase sequentially.
 
 \subsection{Temporal Reasoning in Language Models}
 Prompting LLMs to interpret dates has shown that explicit timestamp tokens can help reduce hallucinations about “when” events occurred \cite{Zhang2023}. We build on these insights by injecting ISO-8601 timestamps into every human turn and summary, enabling the model to filter out “stale” information.
 
 \subsection{Code Introspection and Agent Structure}
-Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection node, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.
+Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection capability, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.
 
 \section{Agent Architecture}
 Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow. The three main loops are:
@@ -96,7 +92,7 @@ Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow. The
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.9\linewidth]{workflow_diagram.png}
+  \includegraphics[width=0.9\linewidth]{conversation_flow.jpg}
   \caption{LangGraph workflow showing message ingestion, short-term summarization, vector memory retrieval, temporal stamping, and code-introspection nodes.}
   \label{fig:workflow}
 \end{figure}
@@ -112,7 +108,7 @@ On each new human turn, the workflow checks whether \texttt{len(state["messages"
 \begin{enumerate}[leftmargin=*]
   \item Sends the entire \texttt{messages} buffer to GPT-4 with a “Please summarize these $k$ turns” prompt.
   \item Captures the returned summary.
-  \item Emits a list of \texttt{RemoveMessage(id)} actions to prune all but the most recent two turns.
+  \item Emits a list of \texttt{RemoveMessage(id)} actions to prune all but the most recent turns.
   \item Writes the new summary to \texttt{state["summary"]}.
 \end{enumerate}
 
@@ -159,7 +155,7 @@ and finally prepends:
 \end{verbatim}
 as the content of a new \texttt{HumanMessage}. By doing so, even if the in-RAM buffer is empty (e.g., on agent restart), relevant facts from long-ago sessions are surfaced automatically. This creates a hybrid memory strategy: ephemeral conversation context + semantic recall from persistent storage.
 
-\subsection{Temporal Self-Awareness: UTC Timestamps}
+\subsection{Temporal Awareness: UTC Timestamps}
 To enable the agent to reason about \emph{when} something occurred, we inject a UTC timestamp into every human turn (and every time we summarize). Concretely, at runtime:
 \begin{verbatim}
 current_utc = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
@@ -177,12 +173,14 @@ By explicitly labeling each piece of context with a timestamp, we ensure the LLM
 Although this adds token overhead, we found that dropping sub-minute precision (i.e., only storing \texttt{“YYYY-MM-DDThh:mmZ”}) reduces bloat with minimal loss of context.
 
 \subsection{Structural Self-Awareness: Code Introspection \& Exception Diagnosis}
-Beyond temporal awareness, Bob also implements \emph{structural self-awareness} of its own codebase. Specifically, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
+Beyond temporal awareness, Bob also implements \emph{structural self-awareness} of its own codebase. 
+First, Bob contains a function to read in its own source code and does so on startup.
+This reading is done sequentially, and the agent can read the codebase line by line.  Arecursive summary to written, and the data are also stored to the mandatory conversation memory, making it possible to recal portions of code as needed.  Secondly, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
 \begin{enumerate}[leftmargin=*]
   \item Captures the Python stack trace via a try/except wrapper around the main loop.
-  \item Uses Python’s \texttt{inspect} module to locate its own source file (`basic_agent.py`) and identify the line number associated with the exception.
+  \item Uses Python’s \texttt{traceback} module to identify the line number associated with the exception.
   \item Constructs a prompt for the LLM of the form:
-  \begin{verbatim}
+  \begin{verbatim} 
   System: The following exception occurred at line {lineno}: {exception_type}
   with message "{exception_message}". Here is the surrounding code:
 
@@ -219,9 +217,9 @@ User (2025-05-25T15:31Z): Suppose also C xor D. Does that help?
 Agent: Since D is true, C must be false. From A → C, A cannot be true (or else C would be true),
      so A is false.
 \end{verbatim}
-These exchanges show that Bob (a) notices insufficient premises (“cannot conclusively determine A”) and (b) adjusts when a new premise arrives. While an LLM alone might guess arbitrarily, Bob’s prompt design enforces “chain-of-thought” reasoning with an explicit epistemic check.
+These exchanges show that Bob (a) notices insufficient premises (“cannot conclusively determine A”) and (b) adjusts when a new premise arrives. 
 
-\subsection{Temporal Self-Awareness}
+\subsection{Temporal Awareness}
 Bob’s timestamping mechanism surfaces recency explicitly. For example:
 \begin{verbatim}
 User (2025-02-15T10:00Z): My cat is unwell.
@@ -255,18 +253,28 @@ Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
 Bob then explains why the system message must be append-only (to preserve identity integrity) while voluntary memory can be LRU-evicted. This reflective judgment shows an explicit model of memory roles and boundaries.
 
 \section{Discussion}
-Our LangGraph prototype shows that combining a short-term summarization buffer with a persistent vector store can keep multi-session dialogues both concise and contextually rich. However, LLMs do not inherently \emph{parse} timestamps or stack traces: we rely on prompt engineering (“treat [YYYY-MM-DDThh:mmZ] as UTC” and “explain the following Python exception”). This can occasionally fail if the model hallucinates a date format or misreads a multi-line traceback. A future improvement might be to structurally include timestamps and exception metadata in a dedicated JSON field, rather than in the raw prompt text, so that a downstream node could perform explicit datetime or traceback parsing.
+In reviewing our implementation, we observed that the current memory management strategy in \texttt{basic_agent.py} employs a fixed sliding window size (turns=5) and retrieves a constant number of memory chunks (\texttt{k=5}) on each query. While this approach ensures that the most recent interactions remain in context, it can lead to recursive bloat: as messages accumulate, redundant storage and retrieval of similar content expands the contextual footprint and may exceed model limits over extended dialogs.
 
-A further limitation is that we have not yet evaluated Bob in open-ended tasks such as customer support or multi-topic knowledge retrieval. All transcripts in this study are toy examples. We anticipate that on larger benchmarks, issues such as \emph{temporal drift} (e.g., conflicting facts from 2025 vs. 2026) and \emph{versioned code drift} (e.g., structure of `basic_agent.py` changes over time) will require a higher-fidelity memory schema (e.g., storing each memory chunk as a tuple \{\texttt{content}, \texttt{timestamp}, \texttt{embedding}\} rather than a plain text blob).
+To streamline context and minimize bloat while preserving retrieval quality, we recommend the following strategies:
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Dynamic windowing:} adapt the sliding-window size based on a token budget or conversation phase, rather than a fixed turn count.
+  \item \textbf{Hierarchical summarization:} periodically summarize older turns into concise representations and store those summaries in long-term memory, purging raw transcripts beyond a threshold.
+  \item \textbf{Relevance-based pruning:} score stored chunks by query relevance or age, retrieving only the top-$n$ entries and automatically discarding low-scoring or stale records via a decay or TTL mechanism.
+  \item \textbf{Dual memory tiers:} separate short-term active context from long-term archival memory, with explicit consolidation events to merge and compress long-term information.
+  \item \textbf{Parameterization and tuning:} expose retrieval parameters ($k$, $\textit{turns}$) as configurable hyperparameters, enabling empirical optimization for different dialog scenarios.
+\end{enumerate}
+These enhancements will help maintain a lean context window, improve retrieval efficiency, and prevent exceeding the model’s context capacity without sacrificing essential conversational grounding.
+
 
 \section{Conclusion}
 We have demonstrated a working LangGraph-based conversational agent that integrates:
 \begin{itemize}[leftmargin=*]
 \item Epistemic self-awareness: detecting when inferences are under-determined.
-\item Self-aware memory management: a dual buffer plus mandatory vector store.
-\item Structural self-awareness: (a) embedding UTC timestamps into every turn and summary, and (b) introspecting its own code to diagnose runtime exceptions.
+\item Self-aware memory management: a dual buffer plus voluntary agent-controlled vector store.
+\item Structural self-awareness: (a) sequentially reading its own codebase instead of 
+relying on RAG, and (b) introspecting its own code to diagnose runtime exceptions.
 \end{itemize}
-Our implementation shows that a modern LLM (GPT-4/O) can meaningfully reflect on its own knowledge, code structure, and memory—laying the groundwork for \emph{identity self-awareness} in future work. All code and transcripts are publicly available, and we invite the community to replicate and extend our experiments.  
+Our implementation shows that a modern LLM (GPT-4o) can meaningfully reflect on its own knowledge, code structure, and memory—laying the groundwork for \emph{identity self-awareness} in future work. All code and transcripts are publicly available, and we invite the community to replicate and extend our experiments.  
 
 \section*{Data and Code Availability}
 The complete codebase (including \texttt{basic\_agent.py}, \texttt{chroma\_db\_manager.py}, and setup scripts) is publicly available at \url{https://github.com/rmukai/langgraph-agent} \cite{LangGraphAgent2025}. The conversation transcripts and embedding snapshots used in this study are archived at \url{https://doi.org/10.XXXX/OSF.IO/ABCDE}.
