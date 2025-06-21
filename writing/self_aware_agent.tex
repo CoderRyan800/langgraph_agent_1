@@ -66,7 +66,6 @@ Although prior work has explored static LSTM-based self-awareness \cite{Mukai202
   \item We develop prompt-engineering patterns that encode UTC timestamps, enabling the model to reason about event chronology.
   \item We implement a code-introspection capability that allows the agent to detect, diagnose, and explain runtime exceptions and to inspect its own source file.
   \item We release a working Python prototype (available at \url{https://github.com/rmukai/langgraph-agent}), demonstrating coherent multi-session dialogues without unbounded context growth.
-  \item We discuss trade-offs (e.g., token overhead vs. precision, staleness detection, and code-analysis accuracy) and outline future directions toward identity self-awareness.
 \end{enumerate}
 
 \section{Related Work}
@@ -252,6 +251,20 @@ User (2025-05-25T16:16Z): Record my love of baseball in voluntary memory.
 Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
 \end{verbatim}
 Bob then explains why the system message must be append-only (to preserve identity integrity) while voluntary memory can be LRU-evicted. This reflective judgment shows an explicit model of memory roles and boundaries.
+
+\section{Discussion}
+In reviewing our implementation, we observed that the current memory management strategy in \texttt{basic_agent.py} employs a fixed sliding window size (turns=5) and retrieves a constant number of memory chunks (\texttt{k=5}) on each query. While this approach ensures that the most recent interactions remain in context, it can lead to recursive bloat: as messages accumulate, redundant storage and retrieval of similar content expands the contextual footprint and may exceed model limits over extended dialogs.
+
+To streamline context and minimize bloat while preserving retrieval quality, we recommend the following strategies:
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Dynamic windowing:} adapt the sliding-window size based on a token budget or conversation phase, rather than a fixed turn count.
+  \item \textbf{Hierarchical summarization:} periodically summarize older turns into concise representations and store those summaries in long-term memory, purging raw transcripts beyond a threshold.
+  \item \textbf{Relevance-based pruning:} score stored chunks by query relevance or age, retrieving only the top-$n$ entries and automatically discarding low-scoring or stale records via a decay or TTL mechanism.
+  \item \textbf{Dual memory tiers:} separate short-term active context from long-term archival memory, with explicit consolidation events to merge and compress long-term information.
+  \item \textbf{Parameterization and tuning:} expose retrieval parameters ($k$, $\textit{turns}$) as configurable hyperparameters, enabling empirical optimization for different dialog scenarios.
+\end{enumerate}
+These enhancements will help maintain a lean context window, improve retrieval efficiency, and prevent exceeding the model’s context capacity without sacrificing essential conversational grounding.
+
 
 \section{Conclusion}
 We have demonstrated a working LangGraph-based conversational agent that integrates:
