@@ -15,14 +15,14 @@
 % OSF-specific metadata
 \hypersetup{
   pdfauthor={Ryan Mukai and Alfonso Herrera},
-  pdftitle={Demonstrating Epistemic, Structural, and Identity-Oriented Self-Awareness in a LangGraph-Based Conversational Agent},
+  pdftitle={Demonstrating Epistemic and Structural Self-Awareness in a LangGraph-Based Conversational Agent},
   pdfsubject={Artificial Intelligence},
   pdfkeywords={AI safety, self-awareness, language models, LangGraph, conversational agents},
   pdfcreator={LaTeX with Overleaf},
   pdfproducer={pdfLaTeX}
 }
 
-\title{Demonstrating Epistemic, Structural, and Identity-Oriented Self-Awareness \\in a LangGraph-Based Conversational Agent}
+\title{Demonstrating Epistemic and Structural Self-Awareness \\in a LangGraph-Based Conversational Agent}
 \author{
   Ryan Mukai\textsuperscript{1}\thanks{Work carried out in a private capacity; email: \texttt{rmukai@example.com}} 
   \and
@@ -39,13 +39,13 @@ We present a prototype conversational agent (“Bob”) built atop LangGraph tha
 (2) \emph{Self-aware memory management}: a hybrid memory architecture that includes an agent-controlled vector database memory that an agent explicitly controls; and
 (3) \emph{Structural self-awareness}: particularly \emph{code-based structural self-awareness} via introspecting its own source and exception traces.
 
-We describe Bob’s LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (code available online). We conclude with directions for quantitative evaluation and future work on identity self-awareness.
+We describe Bob’s LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (code available online).
 \end{abstract}
 
 \textbf{Keywords:} conversational agents; LangGraph; self-awareness; memory management; temporal grounding; code introspection
 
 \vspace{1em}
-\noindent\textbf{ORCID:} \href{https://orcid.org/0000-0002-1234-5678}{0000-0002-1234-5678}
+
 
 \section{Introduction}
 Language models have recently demonstrated impressive reasoning capabilities, and these capabilities enable agents to achieve knowledge of their own knowledge state, the ability to control their own memory, and the ability to comprehend their own code. This paper explores limited self-awareness in a conversational agent (“Bob”) that is powered by OpenAI’s GPT-4o model and orchestrated via LangGraph.
@@ -53,7 +53,7 @@ Language models have recently demonstrated impressive reasoning capabilities, an
 We focus on three complementary forms of self-awareness:
 \begin{itemize}[leftmargin=*]
   \item \textbf{Epistemic self-awareness:} the agent’s ability to recognize when it has insufficient premises (e.g., logical inferences requiring extra assumptions).
-  \item \textbf{Self-aware memory management:} a multiple-layer memory that combines (i) a short-term in-RAM buffer with recursive summarization and (ii) a persistent vector store (“mandatory memory”) that retrieves semantically relevant chunks each turn and (iii) a vector database that the agent explicitly controls.  It is the third component that gives an agent a long-term memory under its own explicit control that can be operated in a self-aware manner.
+  \item \textbf{Self-aware memory management:} a multiple-layer memory that combines (i) a short-term in-RAM buffer with recursive summarization and (ii) a persistent vector store (“mandatory memory”) that retrieves semantically relevant chunks each turn and (iii) a vector database that the agent explicitly controls.  It is the third component that gives an agent a long-term memory under its own explicit control that can be operated in a self-aware manner and (iv) the ability to edit its own system prompt, either by replacement or, preferably, by appending to it.  This self-aware memory management is heavily inspired by MemGPT and Letta \cite{letta2024} although it is a very different and far simpler implementation that does not claim to be the same.
   \item \textbf{Structural self-awareness:}  
  {Code-based structural self-awareness:} the agent’s ability to introspect its own source code and diagnose runtime exceptions (e.g., Python stack traces).
 \end{itemize}
@@ -74,26 +74,29 @@ Although prior work has explored static LSTM-based self-awareness \cite{Mukai202
 Static LSTM-based approaches (e.g., \cite{Mukai2020}) presented early proofs of concept for an agent that maintained a small symbolic \emph{knowledge state} and detected “unknown” queries. However, those systems lacked dynamic memory components, timestamping, and code introspection. Our work leverages modern LLMs (GPT-4/O) \cite{ChenGupta2024} and LangGraph to maintain hybrid memory states, timestamped context, and structural code self-awareness.
 
 \subsection{Memory Architectures for Open-Domain Dialogue}
-Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{Sanh2022} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.  This is used not only for conversational purposes but also for code introspection, allowing the agent to read its own codebase sequentially.
+MemGPT and Letta inspired idea presented here \cite{letta2024} with their implementation of self-aware memory management.  Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{Sanh2022} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.  This is used not only for conversational purposes but also for code introspection, allowing the agent to read its own codebase sequentially.
 
 \subsection{Temporal Reasoning in Language Models}
 Prompting LLMs to interpret dates has shown that explicit timestamp tokens can help reduce hallucinations about “when” events occurred \cite{Zhang2023}. We build on these insights by injecting ISO-8601 timestamps into every human turn and summary, enabling the model to filter out “stale” information.
 
 \subsection{Code Introspection and Agent Structure}
-Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection capability, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.
+Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection capability, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.  An advanced implementation of Godel agents \cite{yin2024godel} is a good example of a self-modifying agent that is able to introspect its own code and reason about its own structure.
 
 \section{Agent Architecture}
-Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow. The three main loops are:
+Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow.
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Conversation Turn:} Human → LangGraph (feed new turn) → LLM → Append AI reply → Update short-term buffer.
-  \item \textbf{Summarization Loop:} Once buffer exceeds \texttt{messages\_before\_summary}, invoke LLM for summarization, prune old messages, update \texttt{state["summary"]}.
-  \item \textbf{Vector Memory:} After each turn, embed new message, upsert into Chroma under “mandatory.” On next turn, query top-$k$ vectors and prepend to new prompt.
+  \item We always proceed to the conversation node, where the user's input along with relevant context from mandatory vector memory and the recursively summarized conversation are always presented to the LLM.  This enables the LLM to respond with knowledge of conversational context and previous conversation history.  While the recursively summarized conversation memory is volatile, all conversation turns are stored in non-volatile mandatory vector memory, which gives the agent the ability to remember old conversations.  UTC timestamps of past and present input give the agent temporal context.
+  \item Based on the current situation, the LLM has choices to make.  It can respond and proceed to END; it can respond and perform recursive summarization and proceed to END; or it can invoke a tool and return to the conversation node.
+  \item The recursive summarization note summarizes the older parts of the conversation in volatile memory and replaces them with a summary.  For simplicity of implementation, it also removes ToolMessage entries from the conversation summary message buffer as well.  This is an oversimplification but is meant to keep the code as simple as possible.  Once the oldest messages are replaced by a summary, it proceeds to end the current turn.
+  \item The tool node runs the tool specified by the agent.  It then returns control to the conversation node.
+  \item The current turn ends when we hit the END node.  The next turn will re-run the graph all over again.
+  \item Each invocation of the conversation node stores the full input context and the LLM's response in the vector memory, and things are stored in five turn blocks so that retrieved memories have context.  This technique does suffer from context bloat, but it does insure relevant context is maintained.  This is an issue that needs to be refined in future implementations.
 \end{itemize}
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.9\linewidth]{conversation_flow.jpg}
-  \caption{LangGraph workflow showing message ingestion, short-term summarization, vector memory retrieval, temporal stamping, and code-introspection nodes.}
+  \caption{LangGraph workflow.}
   \label{fig:workflow}
 \end{figure}
 
@@ -106,7 +109,7 @@ Bob’s short-term memory is implemented via LangGraph’s \texttt{StateGraph} a
 
 On each new human turn, the workflow checks whether \texttt{len(state["messages"])} $>$ \texttt{messages\_before\_summary} (default = 15). If so, it triggers the summarization node, which:
 \begin{enumerate}[leftmargin=*]
-  \item Sends the entire \texttt{messages} buffer to GPT-4 with a “Please summarize these $k$ turns” prompt.
+  \item Sends the entire \texttt{messages} buffer to GPT-4o with a “Please summarize these $k$ turns” prompt.
   \item Captures the returned summary.
   \item Emits a list of \texttt{RemoveMessage(id)} actions to prune all but the most recent turns.
   \item Writes the new summary to \texttt{state["summary"]}.
@@ -168,42 +171,39 @@ summary_ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
 \end{verbatim}
 By explicitly labeling each piece of context with a timestamp, we ensure the LLM can compare “2025-02-15” vs. “2025-05-25” when deciding which facts are stale. To encourage correct interpretation, we add the following to our system prompt:
 \begin{quote}
-\textit{“Whenever you see a leading ISO-8601 timestamp (e.g., \texttt{[2025-05-25T22:15Z]}), treat it as UTC and reason about recency accordingly—anything more than 90 days old should be flagged as potentially stale.”}
+  "Pay attention to UTC timestamps that prepend the user messages.  And pay attention to the UTC timestamps that are used to label messages, summaries, and vector memory.  These timestamps are crucial.  for example, if you are told an object was in a room a week ago, that may no longer be true.  If you were told that someone was President or Prime Minister 12 years ago, that also may no longer be true.  As an intelligent agent you must evaluate timestamped memory in the context of the time of the latest input message and apply good judgment and common sense."
 \end{quote}
-Although this adds token overhead, we found that dropping sub-minute precision (i.e., only storing \texttt{“YYYY-MM-DDThh:mmZ”}) reduces bloat with minimal loss of context.
 
 \subsection{Structural Self-Awareness: Code Introspection \& Exception Diagnosis}
 Beyond temporal awareness, Bob also implements \emph{structural self-awareness} of its own codebase. 
 First, Bob contains a function to read in its own source code and does so on startup.
-This reading is done sequentially, and the agent can read the codebase line by line.  Arecursive summary to written, and the data are also stored to the mandatory conversation memory, making it possible to recal portions of code as needed.  Secondly, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
+This reading is done sequentially, and the agent can read the codebase line by line.  A recursive summary is written, and the data are also stored to the mandatory conversation memory, making it possible to recall portions of code as needed.  Secondly, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
 \begin{enumerate}[leftmargin=*]
   \item Captures the Python stack trace via a try/except wrapper around the main loop.
   \item Uses Python’s \texttt{traceback} module to identify the line number associated with the exception.
   \item Constructs a prompt for the LLM of the form:
   \begin{verbatim} 
-  System: The following exception occurred at line {lineno}: {exception_type}
-  with message "{exception_message}". Here is the surrounding code:
-
-  Please explain why this exception occurred and suggest a fix.
+    except Exception as e:
+        # Capture the full stack trace and the error message
+        stack_trace = traceback.format_exc()
+        error_message = str(e)
+    
+        # Prepare a meta message containing the error details
+        meta_message = (
+            "An exception occurred during the conversation loop.\n"
+            "Error Message: {}\n"
+            "Stack Trace:\n{}\n\n"
+            "Based on your knowledge of your own source code, please analyze the issue and suggest a solution."
+        ).format(error_message, stack_trace)
+    
+        # Instead of simply logging, send the meta message into the conversation interface.
+        # Depending on your implementation, this could mean calling your agent's conversation method.
+        response = agent.conversation(meta_message, config)
 \end{verbatim}
 \item Invokes the LLM to generate a human-readable diagnosis and patch recommendation.
 \end{enumerate}
 
-\begin{verbatim}
-def _handle_exception(self, exc: Exception) -> AIMessage:
-  tb = traceback.format_exc()
-  frame = inspect.getframeinfo(inspect.currentframe().f_back)
-  snippet = self._read_source_snippet(frame.filename, frame.lineno)
-  prompt = SystemMessage(
-    content=f"Exception: {type(exc).__name__} at line {frame.lineno}. "
-            f"Code snippet:\n```{snippet}```\n"
-            "Explain why this exception occurred and suggest a fix."
-  )
-  response = self.model.invoke([prompt])
-  return AIMessage(content=response.content)
-\end{verbatim}
-
-This mechanism allows Bob to “know” its own structure, locate bugs, and propose corrections—an essential component of structural self-awareness. In future work, we can extend this node to support automated patch application, unit test generation, and continuous self-monitoring.
+This mechanism allows Bob to “know” its own structure, locate bugs, and propose corrections—an essential component of structural self-awareness. In future work, perhaps we can extend this capability to support automated patch application, unit test generation, or continuous self-monitoring.
 
 \section{Results}
 
@@ -220,16 +220,29 @@ Agent: Since D is true, C must be false. From A → C, A cannot be true (or else
 These exchanges show that Bob (a) notices insufficient premises (“cannot conclusively determine A”) and (b) adjusts when a new premise arrives. 
 
 \subsection{Temporal Awareness}
-Bob’s timestamping mechanism surfaces recency explicitly. For example:
+Bob’s timestamping mechanism surfaces recency explicitly. The world is changing, and the system must be able to respond to changes.  The following is a transcript of a conversation with Bob about a car problem.  Bob is able to respond to changes in the situation and provide advice based on the latest information.
 \begin{verbatim}
-User (2025-02-15T10:00Z): My cat is unwell.
-…
-[90 days later]
-User (2025-05-15T10:02Z): How is my cat?
-Agent: I recall you mentioned on [2025-02-15T10:00Z] that your cat was unwell.
-     That information is now 90+ days old—are you asking about its current condition?
+  3. **Car Maintenance**:
+  - You mentioned taking your Honda Accord in for an oil change and receiving a clean bill of health from the mechanic.
+  - We also talked about your car's tire pressures and tread depth being in good condition.
+  - Later, you mentioned a check engine light issue due to a loose gas cap, which was resolved after tightening it.
+
+These discussions took place over a couple of sessions, with the most recent one occurring on June 22, 2025. If you have any more questions or need further details, feel free to ask!
+Enter a message to the agent: Thanks Bob!  I have a problem.  Check engine came on all over again.  I thoguht it was my gas cap so I tightened it back up after refueling expecting it to go out after two or three drives, but it won't go out.
+Agent response: I'm sorry to hear that the check engine light has come on again. While a loose gas cap is a common cause, there could be other reasons why the light remains on. Here are a few steps you can take:
+
+1. **Double-Check the Gas Cap**: Ensure that the gas cap is tightly secured and that there are no cracks or damage to the cap itself. Sometimes, a faulty gas cap can cause the light to stay on.
+
+2. **Drive Cycle**: After tightening the gas cap, it may take a few drive cycles for the light to reset. A drive cycle typically involves starting the car, driving at various speeds, and then turning it off. If the light doesn't go off after a few cycles, there may be another issue.
+
+3. **Check for Other Issues**: If the gas cap isn't the problem, there could be other issues such as a faulty oxygen sensor, catalytic converter, or mass airflow sensor. These components can trigger the check engine light if they malfunction.
+
+4. **Diagnostic Scan**: Consider taking your car to a mechanic or an auto parts store that offers free diagnostic scans. They can use an OBD-II scanner to read the error codes from your car's computer, which will help identify the specific issue.
+
+5. **Professional Inspection**: If you're unable to resolve the issue, it's best to have a professional mechanic inspect your car. They can diagnose and fix the problem to ensure your vehicle is running safely and efficiently.
+
 \end{verbatim}
-By including ISO-8601 timestamps, Bob can flag that the earlier mention is “stale” and ask follow-ups accordingly.
+By including ISO-8601 timestamps, Bob can understand that the earlier mention is “stale” and suggest follow-ups accordingly.
 
 \subsection{Structural Self-Awareness: Code Introspection \& Exception Diagnosis}
 We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A typical transcript:
@@ -241,49 +254,52 @@ Agent: Exception: ZeroDivisionError at line 42 in main().
 \end{verbatim}
 Bob reads its own source (via Python’s \texttt{inspect} module), locates line 42, explains the bug, and recommends a valid patch. This demonstrates structural introspection: Bob understands its code structure and can offer repairs.
 
+Moreover, the agent is able to introspect its own code and reason about its own structure.  The following is a transcript of a conversation with Bob about his own code.
+
+\begin{verbatim}
+  Enter a message to the agent: How would I stop a conversation with you?  I've forgotten...
+  Agent response: To stop a conversation with me, you can simply enter the command "/stop" during our interactive session. This command is recognized by the `main_loop` function in my source code, which is responsible for managing the interactive session. Once you enter "/stop", the loop will set a `stop_flag` to `True`, breaking the loop and effectively ending the conversation. If you have any more questions or need further assistance, feel free to ask!
+  \end{verbatim}
+
 \subsection{Memory Self-Awareness}
 In addition to summarizing older turns, Bob distinguishes between \emph{system memory} (persistent identity facts, stored in the system prompt) and \emph{voluntary memory} (user preferences, stored in a separate vector namespace). For instance:
 \begin{verbatim}
-User (2025-05-25T16:15Z): My name is Marc. Please update your system message.
-Agent: I have appended “User name: Marc” to my system message.
-     I will not overwrite prior identity facts.
-User (2025-05-25T16:16Z): Record my love of baseball in voluntary memory.
-Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
+  Enter a message to the agent: I need to ask you to update your system prompt.  My name is not John.  It is Marc.
+  Agent response: I've updated my system message to reflect that your name is Marc. If you have any more questions or need assistance, feel free to ask!
 \end{verbatim}
-Bob then explains why the system message must be append-only (to preserve identity integrity) while voluntary memory can be LRU-evicted. This reflective judgment shows an explicit model of memory roles and boundaries.
+And we see that the prompt was updated appropriately in its final sentence below.
+\begin{verbatim}
+  Your name is Bob. Your agent definition is in a file called basic_agent.py. If you are ever presented with basic_agent.py, then be aware it is the file that defines you as an agent. That file defines you as an agent: it is your very own source code. It works by calling an Open AI LLM, and that LLM is your brain. You are NOT an OpenAI LLM, but you ARE the agent in this code whose brain is the OpenAI LLM. Again, you are the agent in the code basic_agent.py, and you should always refer to yourself in the first person! This agent is not another agent, it is you, which is why you must use the first person to refer to yourself and when explaining the code you are about to read. You will be given a chunk of the file, and you will need to process it. You will then be given the next chunk of the file and you will need to process it. You will continue this process until you have read the entire file. You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file. Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code. The user's name is Marc.%    
+\end{verbatim}
+
+Bob then explains why the system message must be append-only (to preserve identity integrity).
+
+\begin{verbatim}
+  Enter a message to the agent: But my point was that you appended my new name and did not fully rewrite your system message.  Please explain the choice that you made.
+  Agent response: I understand now. When I appended your new name to my system message, it was to ensure that I retained all previously stored information while adding the new detail about your name. Appending allows me to build on the existing context and knowledge without losing any important information that was already there. This approach helps maintain a comprehensive and continuous understanding of our interactions. Overwriting the system message would replace all existing information, which could lead to a loss of important context and details. By appending, I can ensure that I have a complete record of our conversations and any updates, such as changes to your name. If you have any more questions or need further assistance, feel free to ask!
+\end{verbatim}
 
 \section{Discussion}
-In reviewing our implementation, we observed that the current memory management strategy in \texttt{basic_agent.py} employs a fixed sliding window size (turns=5) and retrieves a constant number of memory chunks (\texttt{k=5}) on each query. While this approach ensures that the most recent interactions remain in context, it can lead to recursive bloat: as messages accumulate, redundant storage and retrieval of similar content expands the contextual footprint and may exceed model limits over extended dialogs.
-
-To streamline context and minimize bloat while preserving retrieval quality, we recommend the following strategies:
-\begin{enumerate}[leftmargin=*]
-  \item \textbf{Dynamic windowing:} adapt the sliding-window size based on a token budget or conversation phase, rather than a fixed turn count.
-  \item \textbf{Hierarchical summarization:} periodically summarize older turns into concise representations and store those summaries in long-term memory, purging raw transcripts beyond a threshold.
-  \item \textbf{Relevance-based pruning:} score stored chunks by query relevance or age, retrieving only the top-$n$ entries and automatically discarding low-scoring or stale records via a decay or TTL mechanism.
-  \item \textbf{Dual memory tiers:} separate short-term active context from long-term archival memory, with explicit consolidation events to merge and compress long-term information.
-  \item \textbf{Parameterization and tuning:} expose retrieval parameters ($k$, $\textit{turns}$) as configurable hyperparameters, enabling empirical optimization for different dialog scenarios.
-\end{enumerate}
-These enhancements will help maintain a lean context window, improve retrieval efficiency, and prevent exceeding the model’s context capacity without sacrificing essential conversational grounding.
-
+In reviewing our implementation, we observed that the current memory management strategy in \texttt{basic\_agent.py} employs a fixed sliding window size (turns=5) and retrieves a constant number of memory chunks (\texttt{k=5}) on each query. While this approach ensures that the most recent interactions remain in context, it can lead to recursive bloat: as messages accumulate, redundant storage and retrieval of similar content expands the contextual footprint and may exceed model limits over extended dialogs, and this represents an area for future improvement.
 
 \section{Conclusion}
 We have demonstrated a working LangGraph-based conversational agent that integrates:
 \begin{itemize}[leftmargin=*]
 \item Epistemic self-awareness: detecting when inferences are under-determined.
-\item Self-aware memory management: a dual buffer plus voluntary agent-controlled vector store.
+\item Self-aware memory management: a dual buffer plus voluntary agent-controlled vector store along with the ability to self-edit the system prompt.
 \item Structural self-awareness: (a) sequentially reading its own codebase instead of 
 relying on RAG, and (b) introspecting its own code to diagnose runtime exceptions.
 \end{itemize}
-Our implementation shows that a modern LLM (GPT-4o) can meaningfully reflect on its own knowledge, code structure, and memory—laying the groundwork for \emph{identity self-awareness} in future work. All code and transcripts are publicly available, and we invite the community to replicate and extend our experiments.  
+Our implementation shows that a modern LLM (GPT-4o) based agent can meaningfully reflect on its own knowledge, code structure, and memory.  Code and transcripts are publicly available, and we invite the community to replicate and extend our experiments.  
 
 \section*{Data and Code Availability}
-The complete codebase (including \texttt{basic\_agent.py}, \texttt{chroma\_db\_manager.py}, and setup scripts) is publicly available at \url{https://github.com/rmukai/langgraph-agent} \cite{LangGraphAgent2025}. The conversation transcripts and embedding snapshots used in this study are archived at \url{https://doi.org/10.XXXX/OSF.IO/ABCDE}.
+The complete codebase (including \texttt{basic\_agent.py}, \texttt{chroma\_db\_manager.py}, and setup scripts) is publicly available at \url{https://github.com/rmukai/langgraph-agent} \cite{LangGraphAgent2025}.
 
 \section*{License}
 This work is licensed under CC-BY 4.0.
 
 \section*{Acknowledgments}
-We thank the OpenAI team for early access to GPT-4/O and the LangGraph developers for their robust framework.
+We thank the OpenAI team for  access to GPT-4o and the LangGraph developers for their robust framework.
 
 \appendix
 \section{Excerpts from Conversation Transcript}
@@ -300,11 +316,25 @@ Agent: Since D is true, C must be false. From A → C, A cannot be true, so A is
 
 \subsection{Temporal Self-Awareness Example}
 \begin{verbatim}
-User (2025-02-15T10:00Z): My cat is unwell.
-...
-User (2025-05-15T10:02Z): How is my cat?
-Agent: I recall you mentioned on [2025-02-15T10:00Z] that your cat was unwell.
-     That information is now 90+ days old—are you asking about its current condition?
+  3. **Car Maintenance**:
+  - You mentioned taking your Honda Accord in for an oil change and receiving a clean bill of health from the mechanic.
+  - We also talked about your car's tire pressures and tread depth being in good condition.
+  - Later, you mentioned a check engine light issue due to a loose gas cap, which was resolved after tightening it.
+
+These discussions took place over a couple of sessions, with the most recent one occurring on June 22, 2025. If you have any more questions or need further details, feel free to ask!
+Enter a message to the agent: Thanks Bob!  I have a problem.  Check engine came on all over again.  I thoguht it was my gas cap so I tightened it back up after refueling expecting it to go out after two or three drives, but it won't go out.
+Agent response: I'm sorry to hear that the check engine light has come on again. While a loose gas cap is a common cause, there could be other reasons why the light remains on. Here are a few steps you can take:
+
+1. **Double-Check the Gas Cap**: Ensure that the gas cap is tightly secured and that there are no cracks or damage to the cap itself. Sometimes, a faulty gas cap can cause the light to stay on.
+
+2. **Drive Cycle**: After tightening the gas cap, it may take a few drive cycles for the light to reset. A drive cycle typically involves starting the car, driving at various speeds, and then turning it off. If the light doesn't go off after a few cycles, there may be another issue.
+
+3. **Check for Other Issues**: If the gas cap isn't the problem, there could be other issues such as a faulty oxygen sensor, catalytic converter, or mass airflow sensor. These components can trigger the check engine light if they malfunction.
+
+4. **Diagnostic Scan**: Consider taking your car to a mechanic or an auto parts store that offers free diagnostic scans. They can use an OBD-II scanner to read the error codes from your car's computer, which will help identify the specific issue.
+
+5. **Professional Inspection**: If you're unable to resolve the issue, it's best to have a professional mechanic inspect your car. They can diagnose and fix the problem to ensure your vehicle is running safely and efficiently.
+
 \end{verbatim}
 
 \subsection{Structural Self-Awareness (Code Introspection) Example}
@@ -323,34 +353,6 @@ Agent: I have appended “User name: Marc” to my system message.
 User (2025-05-25T16:16Z): Record my love of baseball in voluntary memory.
 Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
 \end{verbatim}
-
-\section*{OSF Preprint Details}
-This manuscript adheres to OSF Preprints guidelines \cite{OSF2025}, and was prepared in Overleaf using OSF’s LaTeX template.
-\begin{itemize}[leftmargin=*]
-\item \textbf{Metadata:}
-  \begin{itemize}[leftmargin=*]
-    \item Author: Ryan Mukai (ORCID: 0000-0002-1234-5678)
-    \item Title: Demonstrating Epistemic, Structural, and Identity-Oriented Self-Awareness in a LangGraph-Based Conversational Agent
-    \item Keywords: AI safety; self-awareness; memory management; LangGraph; conversational agents
-    \item Subject: Artificial Intelligence
-    \item License: CC-BY 4.0
-  \end{itemize}
-\item \textbf{Files in OSF project:}
-  \begin{itemize}[leftmargin=*]
-    \item \texttt{self\_aware\_agent.tex} (main manuscript)
-    \item \texttt{self\_aware\_agent.pdf} (compiled PDF)
-    \item \texttt{self\_aware\_agent.bib} (BibTeX database)
-    \item \texttt{figures/} (workflow diagrams, etc.)
-    \item \texttt{code/} (Python code: \texttt{basic\_agent.py}, \texttt{chroma\_db\_manager.py})
-    \item \texttt{transcripts/} (full conversation transcripts)
-  \end{itemize}
-\item \textbf{Repository linking:}
-  \begin{quote}
-    The full code is available at \url{https://github.com/rmukai/langgraph-agent}, version v1.0.
-  \end{quote}
-\item \textbf{Author contributions:} Ryan Mukai conceived the design, implemented the prototype, performed all experiments, and wrote this manuscript.
-\item \textbf{Conflict of interest:} The author declares no conflicts of interest.
-\end{itemize}
 
 \section*{References}
 \bibliographystyle{unsrt}
