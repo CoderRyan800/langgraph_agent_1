@@ -1,5 +1,11 @@
 \begin{thebibliography}{1}
 
+\bibitem{letta2024}
+Letta~AI Contributors.
+\newblock Letta: Memory-enhanced agents with memgpt.
+\newblock \url{https://github.com/letta-ai/letta}, 2024.
+\newblock Accessed: 2025-07-05.
+
 \bibitem{Mukai2020}
 Ryan Mukai.
 \newblock Simple reasoning and knowledge states in an lstm-based agent, 2020.
@@ -32,13 +38,16 @@ Nate Soares, Benja Fallenstein, Eliezer Yudkowsky, and Stuart Armstrong.
 \newblock In {\em Proceedings of the 3rd International Conference on Artificial
   General Intelligence (AGI)}, page 143–153, 2015.
 
+\bibitem{yin2024godel}
+Xunjian Yin, Xinyi Wang, Liangming Pan, Xiaojun Wan, and William~Yang Wang.
+\newblock {Gödel Agent: A Self‑Referential Agent Framework for Recursive
+  Self‑Improvement}.
+\newblock {\em arXiv preprint arXiv:2410.04444}, Oct 2024.
+\newblock Submitted to ICLR 2025.
+
 \bibitem{LangGraphAgent2025}
 Ryan Mukai.
 \newblock Langgraph agent codebase.
 \newblock \url{https://github.com/rmukai/langgraph-agent}, 2025.
-
-\bibitem{OSF2025}
-{Center for Open Science}.
-\newblock Osf preprints submission guidelines, 2025.
 
 \end{thebibliography}
