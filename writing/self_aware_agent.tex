@@ -24,11 +24,12 @@
 
 \title{Demonstrating Epistemic and Structural Self-Awareness \\in a LangGraph-Based Conversational Agent}
 \author{
-  Ryan Mukai\textsuperscript{1}\thanks{Work carried out in a private capacity; email: \texttt{rmukai@example.com}} 
+  Ryan Mukai\textsuperscript{1}\thanks{Work carried out in a private capacity; email: \texttt{ryan20083437@gmail.com}} 
   \and
-  Alfonso Herrera\textsuperscript{2}\thanks{Work carried out in a private capacity; email: \texttt{aherrera@example.com}}
+  Alfonso Herrera\textsuperscript{2}\thanks{Work carried out in a private capacity; email: \texttt{aherrus@gmail.com}}
 }
-\date{April 2025}
+
+\date{July 26, 2025}
 
 \begin{document}
 \maketitle
@@ -39,7 +40,7 @@ We present a prototype conversational agent (“Bob”) built atop LangGraph tha
 (2) \emph{Self-aware memory management}: a hybrid memory architecture that includes an agent-controlled vector database memory that an agent explicitly controls; and
 (3) \emph{Structural self-awareness}: particularly \emph{code-based structural self-awareness} via introspecting its own source and exception traces.
 
-We describe Bob’s LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (code available online).
+We describe Bob’s LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (\url{https://github.com/CoderRyan800/langgraph_agent_1}).
 \end{abstract}
 
 \textbf{Keywords:} conversational agents; LangGraph; self-awareness; memory management; temporal grounding; code introspection
@@ -48,7 +49,7 @@ We describe Bob’s LangGraph workflow and illustrate how each component is impl
 
 
 \section{Introduction}
-Language models have recently demonstrated impressive reasoning capabilities, and these capabilities enable agents to achieve knowledge of their own knowledge state, the ability to control their own memory, and the ability to comprehend their own code. This paper explores limited self-awareness in a conversational agent (“Bob”) that is powered by OpenAI’s GPT-4o model and orchestrated via LangGraph.
+Language models have recently demonstrated impressive reasoning capabilities, and these capabilities enable agents to achieve knowledge of their own knowledge state, the ability to control their own memory, and the ability to comprehend their own code. This paper explores limited self-awareness in a conversational agent (“Bob”) that is powered by OpenAI’s GPT-4o model and orchestrated via LangGraph.  Recent work conceptualizes AI awareness across four functional dimensions—metacognition, self-awareness, social awareness, and situational awareness \cite{li2025ai}. 
 
 We focus on three complementary forms of self-awareness:
 \begin{itemize}[leftmargin=*]
@@ -65,22 +66,22 @@ Although prior work has explored static LSTM-based self-awareness \cite{Mukai202
   \item We present an end-to-end LangGraph workflow that integrates short-term and long-term memory with recursive summarization.
   \item We develop prompt-engineering patterns that encode UTC timestamps, enabling the model to reason about event chronology.
   \item We implement a code-introspection capability that allows the agent to detect, diagnose, and explain runtime exceptions and to inspect its own source file.
-  \item We release a working Python prototype (available at \url{https://github.com/rmukai/langgraph-agent}), demonstrating coherent multi-session dialogues without unbounded context growth.
+  \item We release a working Python prototype (available at \url{https://github.com/CoderRyan800/langgraph_agent_1}), demonstrating coherent multi-session dialogues without unbounded context growth.
 \end{enumerate}
 
 \section{Related Work}
 
 \subsection{Self-Awareness in Neural Agents}
-Static LSTM-based approaches (e.g., \cite{Mukai2020}) presented early proofs of concept for an agent that maintained a small symbolic \emph{knowledge state} and detected “unknown” queries. However, those systems lacked dynamic memory components, timestamping, and code introspection. Our work leverages modern LLMs (GPT-4/O) \cite{ChenGupta2024} and LangGraph to maintain hybrid memory states, timestamped context, and structural code self-awareness.
+Static LSTM-based approaches (e.g., \cite{Mukai2020}) presented early proofs of concept for an agent that maintained a small symbolic \emph{knowledge state} and detected “unknown” queries. However, those systems lacked dynamic memory components, timestamping, and code introspection. Our work leverages modern LLMs (GPT-4/O) \cite{wei2022emergent} and LangGraph to maintain hybrid memory states, timestamped context, and structural code self-awareness.  \cite{spivack2025hierarchical} proposes an eleven-tier hierarchy of epistemic self-awareness in AI, ranging from reactive generation to substrate-level introspection.  
 
 \subsection{Memory Architectures for Open-Domain Dialogue}
-MemGPT and Letta inspired idea presented here \cite{letta2024} with their implementation of self-aware memory management.  Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{Sanh2022} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.  This is used not only for conversational purposes but also for code introspection, allowing the agent to read its own codebase sequentially.
+MemGPT and Letta inspired idea presented here \cite{letta2024} with their implementation of self-aware memory management.  Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{xu2022narrate} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.  This is used not only for conversational purposes but also for code introspection, allowing the agent to read its own codebase sequentially.
 
 \subsection{Temporal Reasoning in Language Models}
-Prompting LLMs to interpret dates has shown that explicit timestamp tokens can help reduce hallucinations about “when” events occurred \cite{Zhang2023}. We build on these insights by injecting ISO-8601 timestamps into every human turn and summary, enabling the model to filter out “stale” information.
+Prompting LLMs to interpret dates has shown that explicit timestamp tokens can help reduce hallucinations about “when” events occurred \cite{xiong2024large}. We build on these insights by injecting ISO-8601 timestamps into every human turn and summary, enabling the model to filter out “stale” information.
 
 \subsection{Code Introspection and Agent Structure}
-Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection capability, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.  An advanced implementation of Godel agents \cite{yin2024godel} is a good example of a self-modifying agent that is able to introspect its own code and reason about its own structure.
+Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection capability, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.  An advanced implementation of Godel agents \cite{yin2024godel} is a good example of a self-modifying agent that is able to introspect its own code and reason about its own structure.  The Darwin Gödel Machine \cite{zhang2025darwin} is a good example of a self-modifying agent that is able to introspect its own code and reason about its own structure.
 
 \section{Agent Architecture}
 Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow.
@@ -295,8 +296,6 @@ Our implementation shows that a modern LLM (GPT-4o) based agent can meaningfully
 \section*{Data and Code Availability}
 The complete codebase (including \texttt{basic\_agent.py}, \texttt{chroma\_db\_manager.py}, and setup scripts) is publicly available at \url{https://github.com/rmukai/langgraph-agent} \cite{LangGraphAgent2025}.
 
-\section*{License}
-This work is licensed under CC-BY 4.0.
 
 \section*{Acknowledgments}
 We thank the OpenAI team for  access to GPT-4o and the LangGraph developers for their robust framework.
@@ -317,23 +316,58 @@ Agent: Since D is true, C must be false. From A → C, A cannot be true, so A is
 \subsection{Temporal Self-Awareness Example}
 \begin{verbatim}
   3. **Car Maintenance**:
-  - You mentioned taking your Honda Accord in for an oil change and receiving a clean bill of health from the mechanic.
-  - We also talked about your car's tire pressures and tread depth being in good condition.
-  - Later, you mentioned a check engine light issue due to a loose gas cap, which was resolved after tightening it.
+  - You mentioned taking your Honda Accord 
+    in for an oil change and receiving
+    a clean bill of health from the mechanic.
+  - We also talked about your car's tire pressures 
+    and tread depth being in good condition.
+  - Later, you mentioned a check engine light issue 
+    due to a loose gas cap, which was resolved 
+    after tightening it.
 
-These discussions took place over a couple of sessions, with the most recent one occurring on June 22, 2025. If you have any more questions or need further details, feel free to ask!
-Enter a message to the agent: Thanks Bob!  I have a problem.  Check engine came on all over again.  I thoguht it was my gas cap so I tightened it back up after refueling expecting it to go out after two or three drives, but it won't go out.
-Agent response: I'm sorry to hear that the check engine light has come on again. While a loose gas cap is a common cause, there could be other reasons why the light remains on. Here are a few steps you can take:
+These discussions took place over a couple of sessions, with the most recent 
+one occurring on June 22, 2025. If you have any more questions 
+or need further details, feel free to ask!
 
-1. **Double-Check the Gas Cap**: Ensure that the gas cap is tightly secured and that there are no cracks or damage to the cap itself. Sometimes, a faulty gas cap can cause the light to stay on.
+Enter a message to the agent: Thanks Bob!  I have a problem.  
+Check engine came on all over again.  I thoguht it was my 
+gas cap so I tightened it back up after refueling expecting 
+it to go out after two or three drives, but it won't go out.
 
-2. **Drive Cycle**: After tightening the gas cap, it may take a few drive cycles for the light to reset. A drive cycle typically involves starting the car, driving at various speeds, and then turning it off. If the light doesn't go off after a few cycles, there may be another issue.
+Agent response: I'm sorry to hear that the check engine 
+light has come on again. While a loose gas cap is a common cause, 
+there could be other reasons why the light remains on.
+Here are a few steps you can take:
 
-3. **Check for Other Issues**: If the gas cap isn't the problem, there could be other issues such as a faulty oxygen sensor, catalytic converter, or mass airflow sensor. These components can trigger the check engine light if they malfunction.
+1. **Double-Check the Gas Cap**: Ensure that the gas cap 
+   is tightly secured and that there are no cracks or 
+   damage to the cap itself. Sometimes, a faulty gas cap can 
+   cause the light to stay on.
 
-4. **Diagnostic Scan**: Consider taking your car to a mechanic or an auto parts store that offers free diagnostic scans. They can use an OBD-II scanner to read the error codes from your car's computer, which will help identify the specific issue.
+2. **Drive Cycle**: After tightening the gas cap, 
+   it may take a few drive cycles for the light to reset. 
+   A drive cycle typically involves starting the car, 
+   driving at various speeds, and then turning it off. 
+   If the light doesn't go off after a few cycles, 
+   there may be another issue.
 
-5. **Professional Inspection**: If you're unable to resolve the issue, it's best to have a professional mechanic inspect your car. They can diagnose and fix the problem to ensure your vehicle is running safely and efficiently.
+3. **Check for Other Issues**: If the gas cap isn't 
+   the problem, there could be other issues such 
+   as a faulty oxygen sensor, catalytic converter, 
+   or mass airflow sensor. These components can 
+   trigger the check engine light if they malfunction.
+
+4. **Diagnostic Scan**: Consider taking your car to a 
+   mechanic or an auto parts store that offers free 
+   diagnostic scans. They can use an OBD-II scanner to 
+   read the error codes from your car's computer, 
+   which will help identify the specific issue.
+
+5. **Professional Inspection**: If you're unable to 
+   resolve the issue, it's best to have a professional 
+   mechanic inspect your car. They can diagnose and fix 
+   the problem to ensure your vehicle is running safely 
+   and efficiently.
 
 \end{verbatim}
 
@@ -354,7 +388,7 @@ User (2025-05-25T16:16Z): Record my love of baseball in voluntary memory.
 Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
 \end{verbatim}
 
-\section*{References}
+
 \bibliographystyle{unsrt}
 \bibliography{self_aware_agent}
 
