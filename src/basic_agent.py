@@ -475,7 +475,7 @@ class AgentManager:
     def read_own_source_code(self, file_path: str, chunk_size: int, overlap: int):
         """
         Reads in the agent's own source code from the given file path, breaks it into overlapping chunks,
-        and feeds each chunk into the conversation interface over three passes.
+        and feeds each chunk into the conversation interface.
         
         Each chunk is prefixed with:
           "This is chunk n of N for file <filename> (Pass X):"
@@ -485,7 +485,7 @@ class AgentManager:
         The agent processes each chunk (updating its conversation history and summarizing memory)
         and takes voluntary notes using the add_voluntary_note tool.
         
-        Finally, after three passes, the agent is prompted for a final summary of the file,
+        Finally, the agent is prompted for a final summary of the file,
         and this final summary is also stored in the voluntary memory.
         """
         # Ensure current_thread_id is set; if not, default to "default"
@@ -515,7 +515,7 @@ class AgentManager:
         response=self.conversation(message, {"configurable": {"thread_id": self.current_thread_id}})
         logging.info(f"Agent response for initial file reading prompt: {response}")
         print(f"Agent response for initial file reading prompt: {response}")
-        # Step 3: Process three passes over the file.
+        # Step 3: Process the file.
         # For each pass, send each chunk as a conversation message and record a voluntary note.
         for pass_number in range(1, 2):
             print(f"--- Pass {pass_number} reading file: {file_path} ---")
