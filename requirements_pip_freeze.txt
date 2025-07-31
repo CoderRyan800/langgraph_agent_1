@@ -110,7 +110,7 @@ ffmpeg-python==0.2.0
 filelock @ file:///Users/cbousseau/work/recipes/ci_py311/filelock_1677909105322/work
 flake8 @ file:///Users/cbousseau/work/recipes/ci_py311/flake8_1677931981927/work
 FLAML==2.1.1
-Flask==2.0.1
+Flask==2.2.5
 flatbuffers==24.3.25
 fonttools==4.25.0
 frozenlist @ file:///Users/cbousseau/work/recipes/ci_py311/frozenlist_1677923867353/work
