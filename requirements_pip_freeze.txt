@@ -391,7 +391,7 @@ spyder @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_f02
 spyder-kernels @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_05ibj216sl/croot/spyder-kernels_1691599540883/work
 SQLAlchemy @ file:///Users/cbousseau/work/recipes/ci_py311/sqlalchemy_1677934876727/work
 stack-data @ file:///opt/conda/conda-bld/stack_data_1646927590127/work
-starlette==0.37.2
+starlette==0.47.2
 statsmodels @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_d39rlzrllo/croot/statsmodels_1689937269798/work
 sympy @ file:///Users/cbousseau/work/recipes/ci_py311_2/sympy_1678995976952/work
 tables @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_81qnps6056/croot/pytables_1691621471831/work
