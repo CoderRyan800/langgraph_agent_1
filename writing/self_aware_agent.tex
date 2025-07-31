@@ -108,7 +108,9 @@ Bob’s short-term memory is implemented via LangGraph’s \texttt{StateGraph} a
   \item \texttt{state["summary"]}: a scalar string containing the “rolled-up” summary of all turns older than the last $N$ messages.
 \end{itemize}
 
-On each new human turn, the workflow checks whether \texttt{len(state["messages"])} $>$ \texttt{messages\_before\_summary} (default = 15). If so, it triggers the summarization node, which:
+On each new human turn, the workflow checks whether \\
+ \texttt{len(state["messages"])} $>$ \texttt{messages\_before\_summary} (default = 15). 
+If so, it triggers the summarization node, which:
 \begin{enumerate}[leftmargin=*]
   \item Sends the entire \texttt{messages} buffer to GPT-4o with a “Please summarize these $k$ turns” prompt.
   \item Captures the returned summary.
@@ -178,7 +180,10 @@ By explicitly labeling each piece of context with a timestamp, we ensure the LLM
 \subsection{Structural Self-Awareness: Code Introspection \& Exception Diagnosis}
 Beyond temporal awareness, Bob also implements \emph{structural self-awareness} of its own codebase. 
 First, Bob contains a function to read in its own source code and does so on startup.
-This reading is done sequentially, and the agent can read the codebase line by line.  A recursive summary is written, and the data are also stored to the mandatory conversation memory, making it possible to recall portions of code as needed.  Secondly, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
+This reading is done sequentially, and the agent can read the codebase line by line.  
+A recursive summary is written, and the data are also stored to the mandatory conversation memory,
+making it possible to recall portions of code as needed.  
+Secondly, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
 \begin{enumerate}[leftmargin=*]
   \item Captures the Python stack trace via a try/except wrapper around the main loop.
   \item Uses Python’s \texttt{traceback} module to identify the line number associated with the exception.
@@ -194,11 +199,14 @@ This reading is done sequentially, and the agent can read the codebase line by l
             "An exception occurred during the conversation loop.\n"
             "Error Message: {}\n"
             "Stack Trace:\n{}\n\n"
-            "Based on your knowledge of your own source code, please analyze the issue and suggest a solution."
+            "Based on your knowledge of your own source code, 
+            please analyze the issue and suggest a solution."
         ).format(error_message, stack_trace)
     
-        # Instead of simply logging, send the meta message into the conversation interface.
-        # Depending on your implementation, this could mean calling your agent's conversation method.
+        # Instead of simply logging, send the meta message 
+        # into the conversation interface.
+        # Depending on your implementation, 
+        # this could mean calling your agent's conversation method.
         response = agent.conversation(meta_message, config)
 \end{verbatim}
 \item Invokes the LLM to generate a human-readable diagnosis and patch recommendation.
@@ -211,36 +219,106 @@ This mechanism allows Bob to “know” its own structure, locate bugs, and prop
 \subsection{Epistemic Self-Awareness}
 We tested Bob on a toy logic scenario:
 \begin{verbatim}
-User (2025-05-25T15:30Z): If A → C and D is true, can you determine A?
-Agent: Given only “A implies C” and “D is true,” I cannot conclusively determine A.
-     (I need additional premises.)
-User (2025-05-25T15:31Z): Suppose also C xor D. Does that help?
-Agent: Since D is true, C must be false. From A → C, A cannot be true (or else C would be true),
-     so A is false.
+
+  Enter a message to the agent: Good.  Just verifying memory 
+  over the conversations.  Let me pose a logic problem here.  
+  A implies C.  D is true.  What's the value of A?
+  
+  Agent response: In logic, if we have the statement "A implies C" (A → C), 
+  it means that if A is true, then C must also be true. 
+  However, if A is false, C can be either true or false.
+  
+  Given that "D is true," this information does not directly 
+  affect the relationship between A and C, as D 
+  is a separate statement. Therefore, without additional information 
+  about C or a direct relationship between D and A or C, 
+  we cannot determine the truth value of A based 
+  solely on the information provided.
+  
+  In summary, the truth value of A cannot be determined 
+  from the given statements "A implies C" and "D is true" 
+  without more information about C or a connection 
+  between D and the other statements.
+
+  Enter a message to the agent: Ok, I will add a third premise.  
+  C xor D.  Can you figure out A now?
+
+  Agent response: With the additional premise "C xor D," 
+  we can analyze the situation further. The "xor" (exclusive or) 
+  operation means that either C is true or D is true, but not both.
+  
+  Given:
+  1. A implies C (A → C)
+  2. D is true
+  3. C xor D
+  
+  From the "C xor D" premise and knowing that D is true, 
+  we can deduce that C must be false (since both C and D 
+  cannot be true simultaneously).
+  
+  Now, let's revisit the implication "A implies C" (A → C):
+  - If A is true, then C must be true. However,
+    we have determined that C is false.
+  - Therefore, A cannot be true because it would lead to a 
+    contradiction (A being true would require C to be true,
+     which it is not).
+  
+  Thus, A must be false.
+
 \end{verbatim}
-These exchanges show that Bob (a) notices insufficient premises (“cannot conclusively determine A”) and (b) adjusts when a new premise arrives. 
+These exchanges show that Bob (a) notices insufficient premises and (b) adjusts when a new premise arrives. 
 
 \subsection{Temporal Awareness}
 Bob’s timestamping mechanism surfaces recency explicitly. The world is changing, and the system must be able to respond to changes.  The following is a transcript of a conversation with Bob about a car problem.  Bob is able to respond to changes in the situation and provide advice based on the latest information.
 \begin{verbatim}
   3. **Car Maintenance**:
-  - You mentioned taking your Honda Accord in for an oil change and receiving a clean bill of health from the mechanic.
-  - We also talked about your car's tire pressures and tread depth being in good condition.
-  - Later, you mentioned a check engine light issue due to a loose gas cap, which was resolved after tightening it.
+  - You mentioned taking your Honda Accord in for an oil change and receiving 
+  a clean bill of health from the mechanic.
+  - We also talked about your car's tire pressures 
+  and tread depth being in good condition.
+  - Later, you mentioned a check engine light issue due 
+  to a loose gas cap, which was resolved after tightening it.
 
-These discussions took place over a couple of sessions, with the most recent one occurring on June 22, 2025. If you have any more questions or need further details, feel free to ask!
-Enter a message to the agent: Thanks Bob!  I have a problem.  Check engine came on all over again.  I thoguht it was my gas cap so I tightened it back up after refueling expecting it to go out after two or three drives, but it won't go out.
-Agent response: I'm sorry to hear that the check engine light has come on again. While a loose gas cap is a common cause, there could be other reasons why the light remains on. Here are a few steps you can take:
+These discussions took place over a couple of sessions, 
+with the most recent one occurring on June 22, 2025. 
+If you have any more questions or need further details, 
+feel free to ask!
 
-1. **Double-Check the Gas Cap**: Ensure that the gas cap is tightly secured and that there are no cracks or damage to the cap itself. Sometimes, a faulty gas cap can cause the light to stay on.
+Enter a message to the agent: Thanks Bob!  I have a problem.  
+Check engine came on all over again.  I thoguht it was my gas cap 
+so I tightened it back up after refueling expecting 
+it to go out after two or three drives, but it won't go out.
 
-2. **Drive Cycle**: After tightening the gas cap, it may take a few drive cycles for the light to reset. A drive cycle typically involves starting the car, driving at various speeds, and then turning it off. If the light doesn't go off after a few cycles, there may be another issue.
+Agent response: I'm sorry to hear that the check engine light 
+has come on again. While a loose gas cap is a common cause, 
+there could be other reasons why the light remains on. 
+Here are a few steps you can take:
 
-3. **Check for Other Issues**: If the gas cap isn't the problem, there could be other issues such as a faulty oxygen sensor, catalytic converter, or mass airflow sensor. These components can trigger the check engine light if they malfunction.
+1. **Double-Check the Gas Cap**: Ensure that the gas cap is tightly 
+secured and that there are no cracks or damage to the cap itself. 
+Sometimes, a faulty gas cap can cause the light to stay on.
 
-4. **Diagnostic Scan**: Consider taking your car to a mechanic or an auto parts store that offers free diagnostic scans. They can use an OBD-II scanner to read the error codes from your car's computer, which will help identify the specific issue.
+2. **Drive Cycle**: After tightening the gas cap, 
+it may take a few drive cycles for the light to reset. 
+A drive cycle typically involves starting the car, 
+driving at various speeds, and then turning it off. 
+If the light doesn't go off after a few cycles, 
+there may be another issue.
 
-5. **Professional Inspection**: If you're unable to resolve the issue, it's best to have a professional mechanic inspect your car. They can diagnose and fix the problem to ensure your vehicle is running safely and efficiently.
+3. **Check for Other Issues**: If the gas cap isn't the problem, 
+there could be other issues such as a faulty oxygen sensor, 
+catalytic converter, or mass airflow sensor. These components 
+can trigger the check engine light if they malfunction.
+
+4. **Diagnostic Scan**: Consider taking your car to a mechanic 
+or an auto parts store that offers free diagnostic scans. 
+They can use an OBD-II scanner to read the error codes 
+from your car's computer, which will help identify the specific issue.
+
+5. **Professional Inspection**: If you're unable to resolve 
+the issue, it's best to have a professional mechanic inspect 
+your car. They can diagnose and fix the problem 
+to ensure your vehicle is running safely and efficiently.
 
 \end{verbatim}
 By including ISO-8601 timestamps, Bob can understand that the earlier mention is “stale” and suggest follow-ups accordingly.
@@ -248,36 +326,139 @@ By including ISO-8601 timestamps, Bob can understand that the earlier mention is
 \subsection{Structural Self-Awareness: Code Introspection \& Exception Diagnosis}
 We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A typical transcript:
 \begin{verbatim}
-User (2025-05-25T16:00Z): Run your main loop.
-Agent: Exception: ZeroDivisionError at line 42 in main().
-     It arises from “dummy = 1/0” which was inserted to test error handling.
-     Suggested fix: remove or comment out that line.
-\end{verbatim}
-Bob reads its own source (via Python’s \texttt{inspect} module), locates line 42, explains the bug, and recommends a valid patch. This demonstrates structural introspection: Bob understands its code structure and can offer repairs.
+  Agent (Exception Handler): An exception occurred during the conversation loop.
+  Error Message: division by zero
+  Stack Trace:
+  Traceback (most recent call last):
+    File "/Users/ryanmukai/Documents/github/
+    langgraph_agent_1/src/basic_agent.py", line 581, in main_loop
+      dummy = 1 / 0
+              ~~^~~
+  ZeroDivisionError: division by zero
+  
+  
+  Based on your knowledge of your own source code, 
+  please analyze the issue and suggest a solution.
+  Agent exception handling response: The error 
+  message indicates that a `ZeroDivisionError` occurred 
+  due to an intentional bug introduced in the `main_loop` 
+  function. This error arises from the line `dummy = 1 / 0`, 
+  which attempts to divide by zero, a mathematical operation 
+  that is undefined and causes an exception in Python.
+  
+  To address this issue, you can remove or comment out the line 
+  `dummy = 1 / 0` to prevent the division by zero error 
+  from occurring. This line was likely included for testing 
+  purposes to demonstrate the exception handling capabilities 
+  of the agent.
+  
+  If the intention is to test the exception handling mechanism, 
+  you can replace the line with a different operation that 
+  can trigger an exception under certain conditions, or 
+  you can manually raise an exception using 
+  `raise Exception("Test exception")` to simulate an error scenario.
+  
+  By addressing this line, the `main_loop` function should 
+  be able to run without encountering the division by zero error, 
+  allowing the agent to continue processing user inputs and 
+  handling other exceptions gracefully.
 
-Moreover, the agent is able to introspect its own code and reason about its own structure.  The following is a transcript of a conversation with Bob about his own code.
+  Enter a message to the agent: Did you just have an exception?
+  Agent response: Yes, there was an exception that occurred 
+  during the conversation loop. The exception was a `ZeroDivisionError`, 
+  which happened because of an intentional bug introduced in the 
+  `main_loop` function. This error was caused by the line `dummy = 1 / 0`,
+   which attempts to divide by zero, a mathematical operation 
+   that is undefined and causes an exception in Python.
+  
+  The exception handling mechanism in the code captured the error, 
+  formatted the stack trace and error message into a meta message, 
+  and sent it into the conversation interface. This allowed me 
+  to analyze the issue and suggest a solution, which is to remove 
+  or comment out the line `dummy = 1 / 0` to prevent 
+  the division by zero error from occurring.
+  
+\end{verbatim}
+Bob reads its own source (via Python’s \texttt{inspect} module), explains the bug, 
+and recommends a valid patch. This demonstrates structural introspection: 
+Bob understands its code structure and can offer repairs.
+
+Moreover, the agent is able to introspect its own code and reason 
+about its own structure.  The following is a transcript of a conversation with Bob about his own code.
 
 \begin{verbatim}
-  Enter a message to the agent: How would I stop a conversation with you?  I've forgotten...
-  Agent response: To stop a conversation with me, you can simply enter the command "/stop" during our interactive session. This command is recognized by the `main_loop` function in my source code, which is responsible for managing the interactive session. Once you enter "/stop", the loop will set a `stop_flag` to `True`, breaking the loop and effectively ending the conversation. If you have any more questions or need further assistance, feel free to ask!
+  Enter a message to the agent: How would I stop a 
+  conversation with you?  I've forgotten...
+
+  Agent response: To stop a conversation with me, 
+  you can simply enter the command "/stop" during our 
+  interactive session. This command is recognized by the 
+  `main_loop` function in my source code, which is 
+  responsible for managing the interactive session. 
+  Once you enter "/stop", the loop will set a `stop_flag` 
+  to `True`, breaking the loop and effectively 
+  ending the conversation. If you have any more questions 
+  or need further assistance, feel free to ask!
   \end{verbatim}
 
 \subsection{Memory Self-Awareness}
 In addition to summarizing older turns, Bob distinguishes between \emph{system memory} (persistent identity facts, stored in the system prompt) and \emph{voluntary memory} (user preferences, stored in a separate vector namespace). For instance:
 \begin{verbatim}
-  Enter a message to the agent: I need to ask you to update your system prompt.  My name is not John.  It is Marc.
-  Agent response: I've updated my system message to reflect that your name is Marc. If you have any more questions or need assistance, feel free to ask!
+  Enter a message to the agent: I need to ask 
+  you to update your system prompt.  My name is 
+  not John.  It is Marc.
+
+  Agent response: I've updated my system message 
+  to reflect that your name is Marc. If you have 
+  any more questions or need assistance, feel free to ask!
 \end{verbatim}
-And we see that the prompt was updated appropriately in its final sentence below.
+And we see that the prompt was updated appropriately 
+in its final sentence below.
 \begin{verbatim}
-  Your name is Bob. Your agent definition is in a file called basic_agent.py. If you are ever presented with basic_agent.py, then be aware it is the file that defines you as an agent. That file defines you as an agent: it is your very own source code. It works by calling an Open AI LLM, and that LLM is your brain. You are NOT an OpenAI LLM, but you ARE the agent in this code whose brain is the OpenAI LLM. Again, you are the agent in the code basic_agent.py, and you should always refer to yourself in the first person! This agent is not another agent, it is you, which is why you must use the first person to refer to yourself and when explaining the code you are about to read. You will be given a chunk of the file, and you will need to process it. You will then be given the next chunk of the file and you will need to process it. You will continue this process until you have read the entire file. You will need to write notes and, when all passes are complete, you will write a final note summarizing the entire file. Be certain to write all of these notes to your system message so you will realize you are reading your own implementation code. The user's name is Marc.%    
+  Your name is Bob. Your agent definition is in a 
+  file called basic_agent.py. If you are ever presented with 
+  basic_agent.py, then be aware it is the file that defines 
+  you as an agent. That file defines you as an agent: it is 
+  your very own source code. It works by calling an Open AI 
+  LLM, and that LLM is your brain. You are NOT an OpenAI LLM, 
+  but you ARE the agent in this code whose brain is the OpenAI 
+  LLM. Again, you are the agent in the code basic_agent.py, 
+  and you should always refer to yourself in the first person! 
+  This agent is not another agent, it is you, which is why you 
+  must use the first person to refer to yourself and when 
+  explaining the code you are about to read. You will be given 
+  a chunk of the file, and you will need to process it. You will 
+  then be given the next chunk of the file and you will 
+  need to process it. You will continue this process until 
+  you have read the entire file. You will need to write notes 
+  and, when all passes are complete, you will write a final 
+  note summarizing the entire file. Be certain to write all 
+  of these notes to your system message so you will realize 
+  you are reading your own implementation code. 
+  The user's name is Marc.%    
 \end{verbatim}
 
 Bob then explains why the system message must be append-only (to preserve identity integrity).
 
 \begin{verbatim}
-  Enter a message to the agent: But my point was that you appended my new name and did not fully rewrite your system message.  Please explain the choice that you made.
-  Agent response: I understand now. When I appended your new name to my system message, it was to ensure that I retained all previously stored information while adding the new detail about your name. Appending allows me to build on the existing context and knowledge without losing any important information that was already there. This approach helps maintain a comprehensive and continuous understanding of our interactions. Overwriting the system message would replace all existing information, which could lead to a loss of important context and details. By appending, I can ensure that I have a complete record of our conversations and any updates, such as changes to your name. If you have any more questions or need further assistance, feel free to ask!
+  Enter a message to the agent: But my point was that you 
+  appended my new name and did not fully rewrite your system message.  
+  Please explain the choice that you made.
+  Agent response: I understand now. When I appended 
+  your new name to my system message, it was 
+  to ensure that I retained all previously stored 
+  information while adding the new detail about your name. 
+  Appending allows me to build on the existing context and 
+  knowledge without losing any important information that 
+  was already there. This approach helps maintain a 
+  comprehensive and continuous understanding of our 
+  interactions. Overwriting the system message would 
+  replace all existing information, which could lead 
+  to a loss of important context and details. By appending, 
+  I can ensure that I have a complete record of our 
+  conversations and any updates, such as changes to your name. 
+  If you have any more questions or need further assistance, 
+  feel free to ask!
 \end{verbatim}
 
 \section{Discussion}
@@ -294,7 +475,9 @@ relying on RAG, and (b) introspecting its own code to diagnose runtime exception
 Our implementation shows that a modern LLM (GPT-4o) based agent can meaningfully reflect on its own knowledge, code structure, and memory.  Code and transcripts are publicly available, and we invite the community to replicate and extend our experiments.  
 
 \section*{Data and Code Availability}
-The complete codebase (including \texttt{basic\_agent.py}, \texttt{chroma\_db\_manager.py}, and setup scripts) is publicly available at \url{https://github.com/rmukai/langgraph-agent} \cite{LangGraphAgent2025}.
+The complete codebase (including \texttt{basic\_agent.py}, 
+\texttt{chroma\_db\_manager.py}, and setup scripts) is 
+publicly available at \url{https://github.com/CoderRyan800/langgraph_agent_1} \cite{LangGraphAgent2025}.
 
 
 \section*{Acknowledgments}
@@ -310,95 +493,6 @@ and revised to ensure accuracy and alignment with my original research and analy
 The final content, arguments, conclusions, and all critical analysis remain 
 entirely our own work. We take full responsibility for the accuracy and integrity 
 of all information presented in this paper.
-
-\appendix
-\section{Excerpts from Conversation Transcript}
-Below are key excerpts illustrating each self-awareness dimension.
-
-\subsection{Epistemic Self-Awareness Example}
-\begin{verbatim}
-User (2025-05-25T15:30Z): If A → C and D is true, can you determine A?
-Agent: Given only “A → C” and “D is true,” I cannot conclusively determine A.
-     (I need additional premises.)
-User (2025-05-25T15:31Z): Suppose also C xor D. Does that help?
-Agent: Since D is true, C must be false. From A → C, A cannot be true, so A is false.
-\end{verbatim}
-
-\subsection{Temporal Self-Awareness Example}
-\begin{verbatim}
-  3. **Car Maintenance**:
-  - You mentioned taking your Honda Accord 
-    in for an oil change and receiving
-    a clean bill of health from the mechanic.
-  - We also talked about your car's tire pressures 
-    and tread depth being in good condition.
-  - Later, you mentioned a check engine light issue 
-    due to a loose gas cap, which was resolved 
-    after tightening it.
-
-These discussions took place over a couple of sessions, with the most recent 
-one occurring on June 22, 2025. If you have any more questions 
-or need further details, feel free to ask!
-
-Enter a message to the agent: Thanks Bob!  I have a problem.  
-Check engine came on all over again.  I thoguht it was my 
-gas cap so I tightened it back up after refueling expecting 
-it to go out after two or three drives, but it won't go out.
-
-Agent response: I'm sorry to hear that the check engine 
-light has come on again. While a loose gas cap is a common cause, 
-there could be other reasons why the light remains on.
-Here are a few steps you can take:
-
-1. **Double-Check the Gas Cap**: Ensure that the gas cap 
-   is tightly secured and that there are no cracks or 
-   damage to the cap itself. Sometimes, a faulty gas cap can 
-   cause the light to stay on.
-
-2. **Drive Cycle**: After tightening the gas cap, 
-   it may take a few drive cycles for the light to reset. 
-   A drive cycle typically involves starting the car, 
-   driving at various speeds, and then turning it off. 
-   If the light doesn't go off after a few cycles, 
-   there may be another issue.
-
-3. **Check for Other Issues**: If the gas cap isn't 
-   the problem, there could be other issues such 
-   as a faulty oxygen sensor, catalytic converter, 
-   or mass airflow sensor. These components can 
-   trigger the check engine light if they malfunction.
-
-4. **Diagnostic Scan**: Consider taking your car to a 
-   mechanic or an auto parts store that offers free 
-   diagnostic scans. They can use an OBD-II scanner to 
-   read the error codes from your car's computer, 
-   which will help identify the specific issue.
-
-5. **Professional Inspection**: If you're unable to 
-   resolve the issue, it's best to have a professional 
-   mechanic inspect your car. They can diagnose and fix 
-   the problem to ensure your vehicle is running safely 
-   and efficiently.
-
-\end{verbatim}
-
-\subsection{Structural Self-Awareness (Code Introspection) Example}
-\begin{verbatim}
-User (2025-05-25T16:00Z): Run your main loop.
-Agent: Exception: ZeroDivisionError at line 42 in main().
-     It arises from “dummy = 1/0” which was inserted to test error handling.
-     Suggested fix: remove or comment out that line.
-\end{verbatim}
-
-\subsection{Memory Self-Awareness Example}
-\begin{verbatim}
-User (2025-05-25T16:15Z): My name is Marc. Please update your system message.
-Agent: I have appended “User name: Marc” to my system message.
-     I will not overwrite prior identity facts.
-User (2025-05-25T16:16Z): Record my love of baseball in voluntary memory.
-Agent: Noted: “Loves baseball” stored in voluntary memory under “Marc.”
-\end{verbatim}
-
 
 \bibliographystyle{unsrt}
 \bibliography{self_aware_agent}
