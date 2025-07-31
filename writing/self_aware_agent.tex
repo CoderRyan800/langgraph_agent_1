@@ -180,13 +180,15 @@ relevant_memory = self.chroma_manager.query_memory(mandatory_db, query_embedding
 
 relevant_context = ""
 if relevant_memory and "documents" in relevant_memory:
-    flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
+    flattened_documents = [doc for sublist in 
+                           relevant_memory["documents"] for doc in sublist]
     relevant_context = "\n".join(flattened_documents)
 
 full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nCURRENT INPUT MESSAGE:\n{message}" \\
     if relevant_context else message
 input_message = HumanMessage(content=full_input)
-response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
+response_generator = self.app.stream({"messages": [input_message]},
+                                     config, stream_mode="updates")
 
 \end{verbatim}
 
