@@ -329,7 +329,7 @@ python-json-logger @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000
 python-lsp-black @ file:///Users/cbousseau/work/recipes/ci_py311/python-lsp-black_1677961743861/work
 python-lsp-jsonrpc==1.0.0
 python-lsp-server @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_73tk9oa5lj/croot/python-lsp-server_1681930403042/work
-python-multipart==0.0.9
+python-multipart==0.0.18
 python-slugify @ file:///tmp/build/80754af9/python-slugify_1620405669636/work
 python-snappy @ file:///Users/cbousseau/work/recipes/ci_py311/python-snappy_1677954153933/work
 pytoolconfig @ file:///Users/cbousseau/work/recipes/ci_py311/pytoolconfig_1677952331058/work
