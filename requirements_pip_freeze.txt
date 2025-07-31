@@ -186,7 +186,7 @@ kiwisolver @ file:///Users/cbousseau/work/recipes/ci_py311/kiwisolver_1677925326
 kubernetes==30.1.0
 langchain==0.2.5
 langchain-chroma==0.1.1
-langchain-core==0.2.7
+langchain-core==0.2.43
 langchain-openai==0.1.8
 langchain-text-splitters==0.2.1
 langsmith==0.1.77
