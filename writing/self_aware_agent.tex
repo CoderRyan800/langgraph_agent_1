@@ -118,61 +118,102 @@ If so, it triggers the summarization node, which:
   \item Writes the new summary to \texttt{state["summary"]}.
 \end{enumerate}
 
-Because \texttt{messages} is declared as a \texttt{List} in the state schema, LangGraph automatically appends newly returned messages (or processes \texttt{RemoveMessage} entries) without manual bookkeeping. Scalar fields (like \texttt{summary}) are overwritten. The result is that the agent’s in-RAM buffer never grows beyond a fixed window, yet a running “as-of” summary is always available for context.
+Because \texttt{messages} is declared as a \texttt{List} in the state schema, 
+LangGraph automatically appends newly returned messages 
+(or processes \texttt{RemoveMessage} entries) without manual bookkeeping. 
+Scalar fields (like \texttt{summary}) are overwritten. 
+The result is that the agent’s in-RAM buffer never grows beyond a 
+fixed window, yet a running “as-of” summary is always available for context.
 
 \begin{verbatim}
-@node
-def _should_continue(self, state: State) -> bool:
-    return len(state["messages"]) > self.messages_before_summary
+  def _summarize_conversation(self, state: State):
+  summary = state.get("summary", "")
+  if summary:
+      summary_message = (
+          f"This is a summary of the conversation so far: {summary}\n\n"
+          "Update this summary by incorporating the key facts from 
+          the latest messages, ensuring that important details such as names, 
+          preferences, and user opinions are preserved. Do not lose established facts."
+      )
+  else:
+      summary_message = (
+          "Create a concise but factually accurate summary of the 
+          conversation above, making sure to retain any key facts 
+          such as names, preferences, and opinions."
+      )
 
-@node(...)
-def _summarize_conversation(self, state: State) -> Dict[str, Any]:
-    full_buffer = state["messages"]
-    prompt = SystemMessage(
-      content=f"Summarize these {len(full_buffer)} turns:"
-    )
-    result = self.model.invoke([prompt] + full_buffer)
-    new_summary = result.content
-    delete_ops = [RemoveMessage(id=msg.id) for msg in full_buffer[:-2]]
-    return {"summary": new_summary, "messages": delete_ops}
+  messages = state["messages"] + [HumanMessage(content=summary_message)]
+
+  logging.info("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
+  for index, msg in enumerate(messages):
+      logging.info(f"Message {index}: {msg.pretty_print()}")
+  logging.info("\nDEBUG: End messages to be summarized\n")
+
+  response = self.model.invoke(messages)
+  current_utc_time = datetime.now(UTC).isoformat()
+  new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
+
+  NUM_MESSAGES_TO_KEEP = self.messages_to_keep
+  old_messages_to_remove = [
+      RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
+  ]
+  recent_tool_messages_to_remove = [
+      RemoveMessage(id=m.id)
+      for m in state["messages"][-NUM_MESSAGES_TO_KEEP:]
+      if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and bool(m.tool_calls))
+  ]
+  delete_messages = old_messages_to_remove + recent_tool_messages_to_remove
+
+  return {"summary": new_summary, "messages": delete_messages}
+
 \end{verbatim}
 
 \subsection{Persistent Vector Memory (“Mandatory”)}
-Bob uses Chroma as a vector database for long-term memory. After each completed turn, we:
-\begin{enumerate}[leftmargin=*]
-  \item Compute an embedding of the user’s raw message text via \texttt{self.embedder.embed(...)}.
-  \item Call \texttt{self.chroma\_manager.upsert\_memory(thread\_id, embedding, text)} to store the new chunk under a “mandatory” namespace keyed by \texttt{thread\_id}.
-\end{enumerate}
+Bob uses Chroma as a vector database for long-term memory. 
+At the beginning of each new \texttt{chat(...)} invocation, 
+Bob automatically retrieves relevant past memory and includes it:
+\begin{verbatim}
 
-At the beginning of each new \texttt{chat(...)} invocation, Bob automatically retrieves relevant past memory by:
-\begin{verbatim}
-relevant = self.chroma_manager.query_memory(
-  mandatory_db, query_embedding, k=5
-)
+mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
+query_embedding = self.embedder.embed(message)
+relevant_memory = self.chroma_manager.query_memory(mandatory_db, query_embedding, k=5)
+
+relevant_context = ""
+if relevant_memory and "documents" in relevant_memory:
+    flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
+    relevant_context = "\n".join(flattened_documents)
+
+full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nCURRENT INPUT MESSAGE:\n{message}" \\
+    if relevant_context else message
+input_message = HumanMessage(content=full_input)
+response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
+
 \end{verbatim}
-then flattens the returned documents into a single string:
+
+Moreover, Bob always stores the latest conversation turn in the vector memory afterwards.
+
 \begin{verbatim}
-flattened = "\n".join(sum(relevant["documents"], []))
+self.conversation_history.append(HumanMessage(content=message))
+self.conversation_history.append(AIMessage(content=response_text))
+self.update_vector_memory(thread_id, self.conversation_history, turns=5)
 \end{verbatim}
-and finally prepends:
-\begin{verbatim}
-"HERE IS RELEVANT PAST CONTEXT:\n" + flattened
- + "\nCURRENT MESSAGE:\n" + user_message
-\end{verbatim}
-as the content of a new \texttt{HumanMessage}. By doing so, even if the in-RAM buffer is empty (e.g., on agent restart), relevant facts from long-ago sessions are surfaced automatically. This creates a hybrid memory strategy: ephemeral conversation context + semantic recall from persistent storage.
 
 \subsection{Temporal Awareness: UTC Timestamps}
 To enable the agent to reason about \emph{when} something occurred, we inject a UTC timestamp into every human turn (and every time we summarize). Concretely, at runtime:
 \begin{verbatim}
-current_utc = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
-message_with_ts = f"[{current_utc}] {user_message}"
+current_utc_time = datetime.now(UTC).isoformat()
+message = f"Current Message at UTC Time: {current_utc_time}: {message}"
 \end{verbatim}
-This string becomes the content of \texttt{HumanMessage}, so Bob “sees” both the literal message and a precise timestamp. Likewise, each summary operation archives:
+This string becomes the content of \texttt{HumanMessage}, so Bob “sees” both the 
+literal message and a precise timestamp. Likewise, each summary operation archives:
 \begin{verbatim}
-summary_ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")
-"Summary (as of " + summary_ts + "): " + summary_text
+current_utc_time = datetime.now(UTC).isoformat()
+new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
 \end{verbatim}
-By explicitly labeling each piece of context with a timestamp, we ensure the LLM can compare “2025-02-15” vs. “2025-05-25” when deciding which facts are stale. To encourage correct interpretation, we add the following to our system prompt:
+By explicitly labeling each piece of context with a timestamp, 
+we ensure the LLM can compare “2025-02-15” vs. “2025-05-25” 
+when deciding which facts are stale. To encourage correct interpretation, 
+we add the following to our system prompt:
 \begin{quote}
   "Pay attention to UTC timestamps that prepend the user messages.  And pay attention to the UTC timestamps that are used to label messages, summaries, and vector memory.  These timestamps are crucial.  for example, if you are told an object was in a room a week ago, that may no longer be true.  If you were told that someone was President or Prime Minister 12 years ago, that also may no longer be true.  As an intelligent agent you must evaluate timestamped memory in the context of the time of the latest input message and apply good judgment and common sense."
 \end{quote}
