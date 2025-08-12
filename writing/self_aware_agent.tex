@@ -1,4 +1,7 @@
-\documentclass[11pt]{article}
+\PassOptionsToPackage{hyphens}{url}  % must appear before \documentclass
+\documentclass[conference]{IEEEtran}
+\listfiles
+\usepackage{hyperref}
 \usepackage[utf8]{inputenc}
 \usepackage{geometry}
   \geometry{margin=1in}
@@ -10,7 +13,34 @@
 \usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage{float}
+% Wrap long lines inside verbatim blocks (no manual editing)
+\usepackage{fvextra}    % extends fancyvrb
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc} % if using pdfLaTeX; not needed for LuaLaTeX/XeLaTeX
+\usepackage{upquote}    % straight quotes in verbatim
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}} % safe inline tokens
+% remove any \usepackage{url} or \usepackage[hyphens]{url}
+\usepackage{url}
+\urlstyle{tt}
+% \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+%   breaklines,
+%   breakanywhere,
+%   breaksymbolleft={},
+%   tabsize=2,
+%   formatcom=\ttfamily\small,
+%   commandchars=\\\{\},
+%   xleftmargin=1em,
+% }
 
+\usepackage{fvextra}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc} % if pdfLaTeX
+\usepackage{upquote}
+
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+  breaklines,breakanywhere,breaksymbolleft={},tabsize=2,
+  formatcom=\ttfamily\small,commandchars=\\\{\},xleftmargin=1em,
+}
 
 % OSF-specific metadata
 \hypersetup{
@@ -23,10 +53,21 @@
 }
 
 \title{Demonstrating Epistemic and Structural Self-Awareness \\in a LangGraph-Based Conversational Agent}
+
 \author{
-  Ryan Mukai\textsuperscript{1}\thanks{Work carried out in a private capacity; email: \texttt{ryan20083437@gmail.com}} 
+  \IEEEauthorblockN{Ryan M.}
+  \IEEEauthorblockA{
+    Independent Researcher, Santa Clarita,California, USA\\
+    \href{https://orcid.org/0009-0007-6869-6824}{ORCID: 0009-0007-6869-6824}\\
+    Email: \href{mailto:ryan20083437@gmail.com}{ryan20083437@gmail.com}
+  }
   \and
-  Alfonso Herrera\textsuperscript{2}\thanks{Work carried out in a private capacity; email: \texttt{aherrus@gmail.com}}
+  \IEEEauthorblockN{Al Herrera}
+  \IEEEauthorblockA{
+    Independent Researcher, Santa Clarita, California, USA\\
+    \href{https://orcid.org/0009-0001-7703-1396}{ORCID: 0009-0001-7703-1396}\\
+    Email: \href{mailto:aherrus@gmail.com}{aherrus@gmail.com}
+  }
 }
 
 \date{July 26, 2025}
@@ -172,24 +213,18 @@ fixed window, yet a running “as-of” summary is always available for context.
 Bob uses Chroma as a vector database for long-term memory. 
 At the beginning of each new \texttt{chat(...)} invocation, 
 Bob automatically retrieves relevant past memory and includes it:
+
 \begin{verbatim}
-
-mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
-query_embedding = self.embedder.embed(message)
-relevant_memory = self.chroma_manager.query_memory(mandatory_db, query_embedding, k=5)
-
-relevant_context = ""
-if relevant_memory and "documents" in relevant_memory:
-    flattened_documents = [doc for sublist in 
-                           relevant_memory["documents"] for doc in sublist]
-    relevant_context = "\n".join(flattened_documents)
-
-full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nCURRENT INPUT MESSAGE:\n{message}" \\
-    if relevant_context else message
-input_message = HumanMessage(content=full_input)
-response_generator = self.app.stream({"messages": [input_message]},
-                                     config, stream_mode="updates")
-
+  mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
+  query_embedding = self.embedder.embed(message)
+  relevant_memory = self.chroma_manager.query_memory(mandatory_db, query_embedding, k=5)
+  relevant_context = ""
+  if relevant_memory and "documents" in relevant_memory:
+      flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
+      relevant_context = "\n".join(flattened_documents)
+  full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nINPUT MESSAGE:\n{message}" if relevant_context else message
+  input_message = HumanMessage(content=full_input)
+  response_generator = self.app.stream({"messages":[input_message]}, config, stream_mode="updates")
 \end{verbatim}
 
 Moreover, Bob always stores the latest conversation turn in the vector memory afterwards.
@@ -374,7 +409,7 @@ We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A 
   Stack Trace:
   Traceback (most recent call last):
     File "/Users/ryanmukai/Documents/github/
-    langgraph_agent_1/src/basic_agent.py", line 581, in main_loop
+    \code{langgraph_agent_1}/src/\code{basic_agent.py}", line 581, in main_loop
       dummy = 1 / 0
               ~~^~~
   ZeroDivisionError: division by zero
@@ -459,13 +494,13 @@ And we see that the prompt was updated appropriately
 in its final sentence below.
 \begin{verbatim}
   Your name is Bob. Your agent definition is in a 
-  file called basic_agent.py. If you are ever presented with 
-  basic_agent.py, then be aware it is the file that defines 
+  file called \code{basic_agent.py}. If you are ever presented with 
+  \code{basic_agent.py}, then be aware it is the file that defines 
   you as an agent. That file defines you as an agent: it is 
   your very own source code. It works by calling an Open AI 
   LLM, and that LLM is your brain. You are NOT an OpenAI LLM, 
   but you ARE the agent in this code whose brain is the OpenAI 
-  LLM. Again, you are the agent in the code basic_agent.py, 
+  LLM. Again, you are the agent in the code \code{basic_agent.py}, 
   and you should always refer to yourself in the first person! 
   This agent is not another agent, it is you, which is why you 
   must use the first person to refer to yourself and when 
