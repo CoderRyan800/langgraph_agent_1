@@ -30,11 +30,11 @@
 
 \usepackage{fvextra}
 \usepackage{upquote}
-\usepackage{newunicodechar}
-\newunicodechar{“}{``}
-\newunicodechar{”}{''}
-\newunicodechar{’}{'}
-\newunicodechar{–}{-} % en dash, optional
+% \usepackage{newunicodechar}
+% \newunicodechar{``}{``}
+% \newunicodechar{''}{''}
+% \newunicodechar{'}{'}
+% \newunicodechar{–}{-} % en dash, optional
 
 % Verbatim env that wraps & never reinterprets backslashes/braces
 \DefineVerbatimEnvironment{codeblock}{Verbatim}{
@@ -45,7 +45,7 @@
   formatcom=\ttfamily\small
 }
 
-% Column-safe version so it can’t spill into the next column
+% Column-safe version so it can't spill into the next column
 \newenvironment{codeblockcol}
   {\begin{minipage}{\columnwidth}\begin{codeblock}}
   {\end{codeblock}\end{minipage}}
@@ -60,10 +60,6 @@
   showstringspaces=false,
   tabsize=2,
 }
-% Column-safe wrapper so the code never bleeds into the other column
-\newenvironment{collisting}
-  {\begin{minipage}{\columnwidth}\begin{lstlisting}[style=wraptt]}
-  {\end{lstlisting}\end{minipage}}
 
 % OSF-specific metadata
 \hypersetup{
@@ -99,12 +95,12 @@
 \maketitle
 
 \begin{abstract}
-We present a prototype conversational agent (“Bob”) built atop LangGraph that combines three complementary self-awareness capabilities:
-(1) \emph{Epistemic self-awareness}: the ability to monitor and reflect on one’s own knowledge state (detecting when inferences are under-determined);
+We present a prototype conversational agent (``Bob'') built atop LangGraph that combines three complementary self-awareness capabilities:
+(1) \emph{Epistemic self-awareness}: the ability to monitor and reflect on one's own knowledge state (detecting when inferences are under-determined);
 (2) \emph{Self-aware memory management}: a hybrid memory architecture that includes an agent-controlled vector database memory that an agent explicitly controls; and
 (3) \emph{Structural self-awareness}: particularly \emph{code-based structural self-awareness} via introspecting its own source and exception traces.
 
-We describe Bob’s LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (\url{https://github.com/CoderRyan800/langgraph_agent_1}).
+We describe Bob's LangGraph workflow and illustrate how each component is implemented. Our contributions include (a) an engineering design that unifies short-term and long-term memory while preserving temporal context, (b) agent controlled vector database memory, (c) code-introspection mechanisms that allow the agent to detect and explain runtime exceptions, and (d) a working LangGraph prototype (\url{https://github.com/CoderRyan800/langgraph_agent_1}).
 \end{abstract}
 
 \textbf{Keywords:} conversational agents; LangGraph; self-awareness; memory management; temporal grounding; code introspection
@@ -113,14 +109,14 @@ We describe Bob’s LangGraph workflow and illustrate how each component is impl
 
 
 \section{Introduction}
-Language models have recently demonstrated impressive reasoning capabilities, and these capabilities enable agents to achieve knowledge of their own knowledge state, the ability to control their own memory, and the ability to comprehend their own code. This paper explores limited self-awareness in a conversational agent (“Bob”) that is powered by OpenAI’s GPT-4o model and orchestrated via LangGraph.  Recent work conceptualizes AI awareness across four functional dimensions—metacognition, self-awareness, social awareness, and situational awareness \cite{li2025ai}. 
+Language models have recently demonstrated impressive reasoning capabilities, and these capabilities enable agents to achieve knowledge of their own knowledge state, the ability to control their own memory, and the ability to comprehend their own code. This paper explores limited self-awareness in a conversational agent (``Bob'') that is powered by OpenAI's GPT-4o model and orchestrated via LangGraph.  Recent work conceptualizes AI awareness across four functional dimensions—metacognition, self-awareness, social awareness, and situational awareness \cite{li2025ai}. 
 
 We focus on three complementary forms of self-awareness:
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Epistemic self-awareness:} the agent’s ability to recognize when it has insufficient premises (e.g., logical inferences requiring extra assumptions).
-  \item \textbf{Self-aware memory management:} a multiple-layer memory that combines (i) a short-term in-RAM buffer with recursive summarization and (ii) a persistent vector store (“mandatory memory”) that retrieves semantically relevant chunks each turn and (iii) a vector database that the agent explicitly controls.  It is the third component that gives an agent a long-term memory under its own explicit control that can be operated in a self-aware manner and (iv) the ability to edit its own system prompt, either by replacement or, preferably, by appending to it.  This self-aware memory management is heavily inspired by MemGPT and Letta \cite{letta2024} although it is a very different and far simpler implementation that does not claim to be the same.
+  \item \textbf{Epistemic self-awareness:} the agent's ability to recognize when it has insufficient premises (e.g., logical inferences requiring extra assumptions).
+  \item \textbf{Self-aware memory management:} a multiple-layer memory that combines (i) a short-term in-RAM buffer with recursive summarization and (ii) a persistent vector store (``mandatory memory'') that retrieves semantically relevant chunks each turn and (iii) a vector database that the agent explicitly controls.  It is the third component that gives an agent a long-term memory under its own explicit control that can be operated in a self-aware manner and (iv) the ability to edit its own system prompt, either by replacement or, preferably, by appending to it.  This self-aware memory management is heavily inspired by MemGPT and Letta \cite{letta2024} although it is a very different and far simpler implementation that does not claim to be the same.
   \item \textbf{Structural self-awareness:}  
- {Code-based structural self-awareness:} the agent’s ability to introspect its own source code and diagnose runtime exceptions (e.g., Python stack traces).
+ {Code-based structural self-awareness:} the agent's ability to introspect its own source code and diagnose runtime exceptions (e.g., Python stack traces).
 \end{itemize}
 
 Although prior work has explored static LSTM-based self-awareness \cite{Mukai2020}, our contribution is a \emph{dynamic}, LLM-driven prototype with hybrid memory, explicit timestamping, and code introspection.
@@ -136,19 +132,19 @@ Although prior work has explored static LSTM-based self-awareness \cite{Mukai202
 \section{Related Work}
 
 \subsection{Self-Awareness in Neural Agents}
-Static LSTM-based approaches (e.g., \cite{Mukai2020}) presented early proofs of concept for an agent that maintained a small symbolic \emph{knowledge state} and detected “unknown” queries. However, those systems lacked dynamic memory components, timestamping, and code introspection. Our work leverages modern LLMs (GPT-4/O) \cite{wei2022emergent} and LangGraph to maintain hybrid memory states, timestamped context, and structural code self-awareness.  \cite{spivack2025hierarchical} proposes an eleven-tier hierarchy of epistemic self-awareness in AI, ranging from reactive generation to substrate-level introspection.  
+Static LSTM-based approaches (e.g., \cite{Mukai2020}) presented early proofs of concept for an agent that maintained a small symbolic \emph{knowledge state} and detected ``unknown'' queries. However, those systems lacked dynamic memory components, timestamping, and code introspection. Our work leverages modern LLMs (GPT-4/O) \cite{wei2022emergent} and LangGraph to maintain hybrid memory states, timestamped context, and structural code self-awareness.  \cite{spivack2025hierarchical} proposes an eleven-tier hierarchy of epistemic self-awareness in AI, ranging from reactive generation to substrate-level introspection.  
 
 \subsection{Memory Architectures for Open-Domain Dialogue}
 MemGPT and Letta inspired idea presented here \cite{letta2024} with their implementation of self-aware memory management.  Retrieval-augmented generation (RAG) approaches such as \cite{Lewis2020} store large corpora in vector databases and retrieve top-$k$ passages each turn. However, most RAG systems do not perform \emph{recursive summarization} to prune older context. CLIE \cite{xu2022narrate} introduced summary-augmented buffers in multi-turn chat; our work refines it by adding explicit timestamping and separating \emph{voluntary} vs. \emph{system} memory channels.  This is used not only for conversational purposes but also for code introspection, allowing the agent to read its own codebase sequentially.
 
 \subsection{Temporal Reasoning in Language Models}
-Prompting LLMs to interpret dates has shown that explicit timestamp tokens can help reduce hallucinations about “when” events occurred \cite{xiong2024large}. We build on these insights by injecting ISO-8601 timestamps into every human turn and summary, enabling the model to filter out “stale” information.
+Prompting LLMs to interpret dates has shown that explicit timestamp tokens can help reduce hallucinations about ``when'' events occurred \cite{xiong2024large}. We build on these insights by injecting ISO-8601 timestamps into every human turn and summary, enabling the model to filter out ``stale'' information.
 
 \subsection{Code Introspection and Agent Structure}
 Recent work on \emph{corrigibility} and self-modification (e.g., \cite{Soares2015}) proposes frameworks for self-modifying agents under formal logic constraints but does not address how an agent can continually inspect and reason about its own source code at runtime. Our prototype implements a lightweight code-introspection capability, allowing the agent to read its own Python file, locate lines of code, and diagnose exceptions (e.g., `ZeroDivisionError`), thus adding a structural dimension to self-awareness.  An advanced implementation of Godel agents \cite{yin2024godel} is a good example of a self-modifying agent that is able to introspect its own code and reason about its own structure.  The Darwin Gödel Machine \cite{zhang2025darwin} is a good example of a self-modifying agent that is able to introspect its own code and reason about its own structure.
 
 \section{Agent Architecture}
-Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow.
+Figure~\ref{fig:workflow} illustrates Bob's end-to-end LangGraph workflow.
 \begin{itemize}[leftmargin=*]
   \item We always proceed to the conversation node, where the user's input along with relevant context from mandatory vector memory and the recursively summarized conversation are always presented to the LLM.  This enables the LLM to respond with knowledge of conversational context and previous conversation history.  While the recursively summarized conversation memory is volatile, all conversation turns are stored in non-volatile mandatory vector memory, which gives the agent the ability to remember old conversations.  UTC timestamps of past and present input give the agent temporal context.
   \item Based on the current situation, the LLM has choices to make.  It can respond and proceed to END; it can respond and perform recursive summarization and proceed to END; or it can invoke a tool and return to the conversation node.
@@ -161,39 +157,34 @@ Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow.
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.9\linewidth]{conversation_flow.jpg}
-  \caption{LangGraph workflow.}
+  \caption{Agent workflow. The conversation node handles new user 
+  inputs, short-term memory is summarized when a message threshold 
+  is exceeded, and long-term memory retrieval injects relevant 
+  past context into the LLM. Self-awareness modules monitor and 
+  adjust the workflow as needed.}
   \label{fig:workflow}
 \end{figure}
 
 \subsection{Short-Term Memory with Recursive Summarization}
-Bob’s short-term memory is implemented via LangGraph’s \texttt{StateGraph} abstraction. Internally, we maintain:
-\begin{itemize}[leftmargin=*]
-  \item \texttt{state["messages"]}: a list of \texttt{BaseMessage} (LLM’s \texttt{HumanMessage}, \texttt{AIMessage}, \texttt{ToolMessage}).
-  \item \texttt{state["summary"]}: a scalar string containing the “rolled-up” summary of all turns older than the last $N$ messages.
-\end{itemize}
+Bob's short-term memory is implemented via LangGraph's \texttt{StateGraph} abstraction. 
+The short-term memory is implemented in LangGraph’s StateGraph. 
+A threshold (default = 15 turns) triggers summarization: the entire message 
+buffer is sent to GPT-4o for summarization, older turns are pruned, 
+and the summary is stored. This keeps the working buffer bounded 
+while retaining an “as-of” summary.
 
-On each new human turn, the workflow checks whether \\
- \texttt{len(state["messages"])} $>$ \texttt{messages\_before\_summary} (default = 15). 
-If so, it triggers the summarization node, which:
+On each new human turn, the workflow checks whether the number of stored messages exceeds the summary threshold (default 15).
+If it does, the summarization process:
 \begin{enumerate}[leftmargin=*]
-  \item Sends the entire \texttt{messages} buffer to GPT-4o with a “Please summarize these $k$ turns” prompt.
-  \item Captures the returned summary.
-  \item Emits a list of \texttt{RemoveMessage(id)} actions to prune all but the most recent turns.
-  \item Writes the new summary to \texttt{state["summary"]}.
+	\item Sends the entire recent message history to GPT-4o with instructions to summarize the latest k turns.
+	\item Receives and stores the resulting summary.
+	\item Identifies and removes all but the most recent turns from memory.
+	\item Updates the conversation state with the new summary.
 \end{enumerate}
 
-Because \texttt{messages} is declared as a \texttt{List} in the state schema, 
-LangGraph automatically appends newly returned messages 
-(or processes \texttt{RemoveMessage} entries) without manual bookkeeping. 
-Scalar fields (like \texttt{summary}) are overwritten. 
-The result is that the agent’s in-RAM buffer never grows beyond a 
-fixed window, yet a running “as-of” summary is always available for context.
-The \texttt{\_summarize\_conversation} method examines the 
-conversation state to decide whether summarization is needed. 
-If the message buffer exceeds a preset threshold, it generates 
-a summary with GPT-4o, prunes older messages, and updates the 
-\texttt{summary} field in state. This keeps in‐RAM memory 
-bounded while preserving a running “as‐of” summary.
+While short-term memory maintains the immediate conversational context,
+a separate long-term memory component ensures important information 
+persists across sessions.
 
 \subsection{Persistent Vector Memory (``Mandatory'')}
 Bob uses Chroma as a vector database for long-term memory. 
@@ -202,26 +193,19 @@ relevant past messages from Chroma, injects them into the LLM
 context, and after responding, appends the new turn to the 
 vector memory for future retrieval.
 
-Moreover, Bob always stores the latest conversation turn in the vector memory afterwards.
-
-\begin{verbatim}
-self.conversation_history.append(HumanMessage(content=message))
-self.conversation_history.append(AIMessage(content=response_text))
-self.update_vector_memory(thread_id, self.conversation_history, turns=5)
-\end{verbatim}
+After generating a response, Bob appends the latest human and 
+AI messages to the conversation history, then updates the 
+Chroma vector store for the active thread. This ensures 
+that newly exchanged information is available for future 
+retrievals. The full implementation is available in the 
+project repository \url{https://github.com/CoderRyan800/langgraph_agent_1}.
 
 \subsection{Temporal Awareness: UTC Timestamps}
-To enable the agent to reason about \emph{when} something occurred, we inject a UTC timestamp into every human turn (and every time we summarize). Concretely, at runtime:
-\begin{verbatim}
-current_utc_time = datetime.now(UTC).isoformat()
-message = f"Current Message at UTC Time: {current_utc_time}: {message}"
-\end{verbatim}
-This string becomes the content of \texttt{HumanMessage}, so Bob ``sees'' both the 
-literal message and a precise timestamp. Likewise, each summary operation archives:
-\begin{verbatim}
-current_utc_time = datetime.now(UTC).isoformat()
-new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
-\end{verbatim}
+To enable the agent to reason about \emph{when} something occurred, 
+we inject a UTC timestamp into every human turn. 
+Bob ``sees'' both the 
+literal message and a precise timestamp. Likewise, each summary operation archives
+a UTC timestamp.
 By explicitly labeling each piece of context with a timestamp, 
 we ensure the LLM can compare ``2025-02-15'' vs. ``2025-05-25'' 
 when deciding which facts are stale. To encourage correct interpretation, 
@@ -236,42 +220,29 @@ First, Bob contains a function to read in its own source code and does so on sta
 This reading is done sequentially, and the agent can read the codebase line by line.  
 A recursive summary is written, and the data are also stored to the mandatory conversation memory,
 making it possible to recall portions of code as needed.  
-Secondly, whenever a runtime exception occurs (e.g., a \texttt{ZeroDivisionError}), Bob:
-\begin{enumerate}[leftmargin=*]
-  \item Captures the Python stack trace via a try/except wrapper around the main loop.
-  \item Uses Python’s \texttt{traceback} module to identify the line number associated with the exception.
-  \item Constructs a prompt for the LLM of the form:
-  \begin{verbatim} 
-    except Exception as e:
-        # Capture the full stack trace and the error message
-        stack_trace = traceback.format_exc()
-        error_message = str(e)
-    
-        # Prepare a meta message containing the error details
-        meta_message = (
-            "An exception occurred during the conversation loop.\n"
-            "Error Message: {}\n"
-            "Stack Trace:\n{}\n\n"
-            "Based on your knowledge of your own source code, 
-            please analyze the issue and suggest a solution."
-        ).format(error_message, stack_trace)
-    
-        # Instead of simply logging, send the meta message 
-        # into the conversation interface.
-        # Depending on your implementation, 
-        # this could mean calling your agent's conversation method.
-        response = agent.conversation(meta_message, config)
-\end{verbatim}
-\item Invokes the LLM to generate a human-readable diagnosis and patch recommendation.
-\end{enumerate}
+When an exception occurs, the agent records the stack 
+trace and error message, formats them into a meta-message, 
+and sends this to the LLM for analysis and suggested fixes. 
+For details, see the GitHub repository.
 
-This mechanism allows Bob to “know” its own structure, locate bugs, and propose corrections—an essential component of structural self-awareness. In future work, perhaps we can extend this capability to support automated patch application, unit test generation, or continuous self-monitoring.
+This mechanism allows Bob to ``know'' its own structure, 
+locate bugs, and propose corrections—an essential component 
+of structural self-awareness. In future work, 
+perhaps we can extend this capability to support 
+automated patch application, unit test generation, 
+or continuous self-monitoring.
 
 \section{Results}
 
+The following results are qualitative demonstrations 
+of system behavior in representative scenarios. 
+While no formal benchmarking is presented here, 
+these examples highlight the system’s capabilities
+across multiple operational dimensions.
+
 \subsection{Epistemic Self-Awareness}
 We tested Bob on a toy logic scenario:
-\begin{verbatim}
+\begin{quote}
 
   Enter a message to the agent: Good.  Just verifying memory 
   over the conversations.  Let me pose a logic problem here.  
@@ -318,12 +289,20 @@ We tested Bob on a toy logic scenario:
   
   Thus, A must be false.
 
-\end{verbatim}
+\end{quote}
 These exchanges show that Bob (a) notices insufficient premises and (b) adjusts when a new premise arrives. 
 
 \subsection{Temporal Awareness}
-Bob’s timestamping mechanism surfaces recency explicitly. The world is changing, and the system must be able to respond to changes.  The following is a transcript of a conversation with Bob about a car problem.  Bob is able to respond to changes in the situation and provide advice based on the latest information.
-\begin{verbatim}
+Bob's timestamping mechanism surfaces recency explicitly. 
+The world is changing, and the system must be able to respond 
+to changes.  The following is a transcript of a 
+conversation with Bob about a car problem.  Bob is able 
+to respond to changes in the situation and provide advice 
+based on the latest information.
+
+
+
+\begin{quote}
   3. **Car Maintenance**:
   - You mentioned taking your Honda Accord in for an oil change and receiving 
   a clean bill of health from the mechanic.
@@ -373,28 +352,27 @@ the issue, it's best to have a professional mechanic inspect
 your car. They can diagnose and fix the problem 
 to ensure your vehicle is running safely and efficiently.
 
-\end{verbatim}
-By including ISO-8601 timestamps, Bob can understand that the earlier mention is “stale” and suggest follow-ups accordingly.
+\end{quote}
+By including ISO-8601 timestamps, Bob can understand that the earlier mention 
+is ``stale'' and suggest follow-ups accordingly.
+While temporal awareness allows the agent to anchor facts and events in time, structural self-awareness
+enables it to anchor itself in its own codebase and execution flow.
 
 \subsection{Structural Self-Awareness: Code Introspection \& Exception Diagnosis}
-We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A typical transcript:
-\begin{verbatim}
-  Agent (Exception Handler): An exception occurred during the conversation loop.
-  Error Message: division by zero
-  Stack Trace:
-  Traceback (most recent call last):
-    File "/Users/ryanmukai/Documents/github/
-    \code{langgraph_agent_1}/src/\code{basic_agent.py}", line 581, in main_loop
-      dummy = 1 / 0
-              ~~^~~
-  ZeroDivisionError: division by zero
-  
-  
-  Based on your knowledge of your own source code, 
-  please analyze the issue and suggest a solution.
-  Agent exception handling response: The error 
+
+
+The next transcripts illustrate how the agent can identify 
+and diagnose issues within its own workflow, providing actionable suggestions for repair.
+We introduced a deliberate \texttt{ZeroDivisionError} in Bob's Python code.
+The next example uses a deliberately introduced 
+division-by-zero error to demonstrate how the agent 
+diagnoses runtime faults and proposes targeted fixes.
+A typical response:
+\begin{quote}
+
+  The error 
   message indicates that a `ZeroDivisionError` occurred 
-  due to an intentional bug introduced in the `main_loop` 
+  due to an intentional bug introduced in the `main\_loop` 
   function. This error arises from the line `dummy = 1 / 0`, 
   which attempts to divide by zero, a mathematical operation 
   that is undefined and causes an exception in Python.
@@ -411,7 +389,7 @@ We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A 
   you can manually raise an exception using 
   `raise Exception("Test exception")` to simulate an error scenario.
   
-  By addressing this line, the `main_loop` function should 
+  By addressing this line, the `main\_loop` function should 
   be able to run without encountering the division by zero error, 
   allowing the agent to continue processing user inputs and 
   handling other exceptions gracefully.
@@ -420,7 +398,7 @@ We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A 
   Agent response: Yes, there was an exception that occurred 
   during the conversation loop. The exception was a `ZeroDivisionError`, 
   which happened because of an intentional bug introduced in the 
-  `main_loop` function. This error was caused by the line `dummy = 1 / 0`,
+  `main\_loop` function. This error was caused by the line `dummy = 1 / 0`,
    which attempts to divide by zero, a mathematical operation 
    that is undefined and causes an exception in Python.
   
@@ -431,32 +409,38 @@ We introduced a deliberate \texttt{ZeroDivisionError} in Bob’s Python code. A 
   or comment out the line `dummy = 1 / 0` to prevent 
   the division by zero error from occurring.
   
-\end{verbatim}
-Bob reads its own source (via Python’s \texttt{inspect} module), explains the bug, 
+\end{quote}
+Bob reads its own source (via Python's \texttt{inspect} module), explains the bug, 
 and recommends a valid patch. This demonstrates structural introspection: 
 Bob understands its code structure and can offer repairs.
 
 Moreover, the agent is able to introspect its own code and reason 
 about its own structure.  The following is a transcript of a conversation with Bob about his own code.
 
-\begin{verbatim}
+\begin{quote}
   Enter a message to the agent: How would I stop a 
   conversation with you?  I've forgotten...
 
   Agent response: To stop a conversation with me, 
   you can simply enter the command "/stop" during our 
   interactive session. This command is recognized by the 
-  `main_loop` function in my source code, which is 
+  `main\_loop` function in my source code, which is 
   responsible for managing the interactive session. 
-  Once you enter "/stop", the loop will set a `stop_flag` 
+  Once you enter "/stop", the loop will set a `stop\_flag` 
   to `True`, breaking the loop and effectively 
   ending the conversation. If you have any more questions 
   or need further assistance, feel free to ask!
-  \end{verbatim}
+  \end{quote}
 
 \subsection{Memory Self-Awareness}
-In addition to summarizing older turns, Bob distinguishes between \emph{system memory} (persistent identity facts, stored in the system prompt) and \emph{voluntary memory} (user preferences, stored in a separate vector namespace). For instance:
-\begin{verbatim}
+This example shows how the agent maintains consistency 
+over time by remembering prior instructions and avoiding 
+accidental overwrites of existing details.
+In addition to summarizing older turns, Bob distinguishes 
+between \emph{system memory} (persistent identity facts, 
+stored in the system prompt) and \emph{voluntary memory} 
+(user preferences, stored in a separate vector namespace). For instance:
+\begin{quote}
   Enter a message to the agent: I need to ask 
   you to update your system prompt.  My name is 
   not John.  It is Marc.
@@ -464,36 +448,14 @@ In addition to summarizing older turns, Bob distinguishes between \emph{system m
   Agent response: I've updated my system message 
   to reflect that your name is Marc. If you have 
   any more questions or need assistance, feel free to ask!
-\end{verbatim}
+\end{quote}
 And we see that the prompt was updated appropriately 
-in its final sentence below.
-\begin{verbatim}
-  Your name is Bob. Your agent definition is in a 
-  file called \code{basic_agent.py}. If you are ever presented with 
-  \code{basic_agent.py}, then be aware it is the file that defines 
-  you as an agent. That file defines you as an agent: it is 
-  your very own source code. It works by calling an OpenAI 
-  LLM, and that LLM is your brain. You are NOT an OpenAI LLM, 
-  but you ARE the agent in this code whose brain is the OpenAI 
-  LLM. Again, you are the agent in the code \code{basic_agent.py}, 
-  and you should always refer to yourself in the first person! 
-  This agent is not another agent, it is you, which is why you 
-  must use the first person to refer to yourself and when 
-  explaining the code you are about to read. You will be given 
-  a chunk of the file, and you will need to process it. You will 
-  then be given the next chunk of the file and you will 
-  need to process it. You will continue this process until 
-  you have read the entire file. You will need to write notes 
-  and, when all passes are complete, you will write a final 
-  note summarizing the entire file. Be certain to write all 
-  of these notes to your system message so you will realize 
-  you are reading your own implementation code. 
-  The user's name is Marc.%    
-\end{verbatim}
+by adding the following to the system prompt:
+``The user's name is Marc.''   
 
 Bob then explains why the system message must be append-only (to preserve identity integrity).
 
-\begin{verbatim}
+\begin{quote}
   Enter a message to the agent: But my point was that you 
   appended my new name and did not fully rewrite your system message.  
   Please explain the choice that you made.
@@ -512,10 +474,19 @@ Bob then explains why the system message must be append-only (to preserve identi
   conversations and any updates, such as changes to your name. 
   If you have any more questions or need further assistance, 
   feel free to ask!
-\end{verbatim}
+\end{quote}
 
 \section{Discussion}
 In reviewing our implementation, we observed that the current memory management strategy in \texttt{basic\_agent.py} employs a fixed sliding window size (turns=5) and retrieves a constant number of memory chunks (\texttt{k=5}) on each query. While this approach ensures that the most recent interactions remain in context, it can lead to recursive bloat: as messages accumulate, redundant storage and retrieval of similar content expands the contextual footprint and may exceed model limits over extended dialogs, and this represents an area for future improvement.
+
+\subsection{Limitations and Future Work}
+This implementation depends on external APIs for 
+large language models and vector database operations, 'which may introduce latency and dependency risks. 
+No quantitative benchmarks are included in this work; 
+future evaluations will explore retrieval accuracy, 
+latency under load, and context retention over extended conversations.
+Further enhancements could integrate on-device embeddings, 
+multimodal input processing, and adaptive reasoning modules.
 
 \section{Conclusion}
 We have demonstrated a working LangGraph-based conversational agent that integrates:
@@ -537,11 +508,11 @@ publicly available at \url{https://github.com/CoderRyan800/langgraph_agent_1} \c
 We thank the OpenAI team for  access to GPT-4o and the LangGraph developers for their robust framework.
 We acknowledge the use of Perplexity AI (https://www.perplexity.ai/) and ChatGPT-4o from OpenAI
 (https://chat.openai.com/) to assist in various aspects of this research work.
-Perplexity AI was used for specific purpose, e.g., “conducting initial literature searches 
-and identifying relevant academic sources”. The tool was particularly helpful in 
+Perplexity AI was used for specific purpose, e.g., ``conducting initial literature searches 
+and identifying relevant academic sources''. The tool was particularly helpful in 
 locating peer-reviewed articles and providing source citations that were subsequently verified independently.
-ChatGPT 4o was used for specific purpose, e.g., “refining academic initial drafts 
-of certain sections”. All AI-generated content was thoroughly reviewed, fact-checked, 
+ChatGPT 4o was used for specific purpose, e.g., ``refining academic initial drafts 
+of certain sections''. All AI-generated content was thoroughly reviewed, fact-checked, 
 and revised to ensure accuracy and alignment with my original research and analysis.
 The final content, arguments, conclusions, and all critical analysis remain 
 entirely our own work. We take full responsibility for the accuracy and integrity 
