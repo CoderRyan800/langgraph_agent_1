@@ -17,26 +17,54 @@
 \usepackage{enumitem}
 \usepackage{float}
 
+% Safe inline code macro
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+
+% Better line breaking overall
+\usepackage{microtype}
 % Hyperlinks
 \usepackage{xurl}       % safe URL breaks
 \urlstyle{tt}
 \def\UrlBreaks{\do\/\do-\do\_} % break at / - _
 \usepackage{hyperref}
 
-% Code & verbatim formatting
 \usepackage{fvextra}
 \usepackage{upquote}
-\RecustomVerbatimEnvironment{verbatim}{Verbatim}{
-  breaklines, breakanywhere, breaksymbolleft={},
-  tabsize=2, formatcom=\ttfamily\small,
-  commandchars=\\\{\}, xleftmargin=1em,
+\usepackage{newunicodechar}
+\newunicodechar{“}{``}
+\newunicodechar{”}{''}
+\newunicodechar{’}{'}
+\newunicodechar{–}{-} % en dash, optional
+
+% Verbatim env that wraps & never reinterprets backslashes/braces
+\DefineVerbatimEnvironment{codeblock}{Verbatim}{
+  breaklines,
+  breakanywhere,
+  breaksymbolleft={},
+  tabsize=2,
+  formatcom=\ttfamily\small
 }
 
-% Safe inline code macro
-\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+% Column-safe version so it can’t spill into the next column
+\newenvironment{codeblockcol}
+  {\begin{minipage}{\columnwidth}\begin{codeblock}}
+  {\end{codeblock}\end{minipage}}
 
-% Better line breaking overall
-\usepackage{microtype}
+\usepackage{listings}
+\lstdefinestyle{wraptt}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=2,
+}
+% Column-safe wrapper so the code never bleeds into the other column
+\newenvironment{collisting}
+  {\begin{minipage}{\columnwidth}\begin{lstlisting}[style=wraptt]}
+  {\end{lstlisting}\end{minipage}}
+
 % OSF-specific metadata
 \hypersetup{
   pdfauthor={Ryan Mukai and Alfonso Herrera},
@@ -52,7 +80,7 @@
 \author{
   \IEEEauthorblockN{Ryan M.}
   \IEEEauthorblockA{
-    Independent Researcher, Santa Clarita,California, USA\\
+    Independent Researcher, Santa Clarita, California, USA\\
     \href{https://orcid.org/0009-0007-6869-6824}{ORCID: 0009-0007-6869-6824}\\
     Email: \href{mailto:ryan20083437@gmail.com}{ryan20083437@gmail.com}
   }
@@ -127,7 +155,7 @@ Figure~\ref{fig:workflow} illustrates Bob’s end-to-end LangGraph workflow.
   \item The recursive summarization note summarizes the older parts of the conversation in volatile memory and replaces them with a summary.  For simplicity of implementation, it also removes ToolMessage entries from the conversation summary message buffer as well.  This is an oversimplification but is meant to keep the code as simple as possible.  Once the oldest messages are replaced by a summary, it proceeds to end the current turn.
   \item The tool node runs the tool specified by the agent.  It then returns control to the conversation node.
   \item The current turn ends when we hit the END node.  The next turn will re-run the graph all over again.
-  \item Each invocation of the conversation node stores the full input context and the LLM's response in the vector memory, and things are stored in five turn blocks so that retrieved memories have context.  This technique does suffer from context bloat, but it does insure relevant context is maintained.  This is an issue that needs to be refined in future implementations.
+  \item Each invocation of the conversation node stores the full input context and the LLM's response in the vector memory, and things are stored in five turn blocks so that retrieved memories have context.  This technique does suffer from context bloat, but it does ensure relevant context is maintained.  This is an issue that needs to be refined in future implementations.
 \end{itemize}
 
 \begin{figure}[H]
@@ -160,69 +188,19 @@ LangGraph automatically appends newly returned messages
 Scalar fields (like \texttt{summary}) are overwritten. 
 The result is that the agent’s in-RAM buffer never grows beyond a 
 fixed window, yet a running “as-of” summary is always available for context.
+The \texttt{\_summarize\_conversation} method examines the 
+conversation state to decide whether summarization is needed. 
+If the message buffer exceeds a preset threshold, it generates 
+a summary with GPT-4o, prunes older messages, and updates the 
+\texttt{summary} field in state. This keeps in‐RAM memory 
+bounded while preserving a running “as‐of” summary.
 
-\begin{verbatim}
-  def _summarize_conversation(self, state: State):
-  summary = state.get("summary", "")
-  if summary:
-      summary_message = (
-          f"This is a summary of the conversation so far: {summary}\n\n"
-          "Update this summary by incorporating the key facts from 
-          the latest messages, ensuring that important details such as names, 
-          preferences, and user opinions are preserved. Do not lose established facts."
-      )
-  else:
-      summary_message = (
-          "Create a concise but factually accurate summary of the 
-          conversation above, making sure to retain any key facts 
-          such as names, preferences, and opinions."
-      )
-
-  messages = state["messages"] + [HumanMessage(content=summary_message)]
-
-  logging.info("DEBUG: MESSAGES AT THE SUMMARIZE NODE BEFORE SUMMARIZATION:\n")
-  for index, msg in enumerate(messages):
-      logging.info(f"Message {index}: {msg.pretty_print()}")
-  logging.info("\nDEBUG: End messages to be summarized\n")
-
-  response = self.model.invoke(messages)
-  current_utc_time = datetime.now(UTC).isoformat()
-  new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
-
-  NUM_MESSAGES_TO_KEEP = self.messages_to_keep
-  old_messages_to_remove = [
-      RemoveMessage(id=m.id) for m in state["messages"][:-NUM_MESSAGES_TO_KEEP]
-  ]
-  recent_tool_messages_to_remove = [
-      RemoveMessage(id=m.id)
-      for m in state["messages"][-NUM_MESSAGES_TO_KEEP:]
-      if isinstance(m, ToolMessage) or (isinstance(m, AIMessage) and bool(m.tool_calls))
-  ]
-  delete_messages = old_messages_to_remove + recent_tool_messages_to_remove
-
-  return {"summary": new_summary, "messages": delete_messages}
-
-\end{verbatim}
-
-\subsection{Persistent Vector Memory (“Mandatory”)}
+\subsection{Persistent Vector Memory (``Mandatory'')}
 Bob uses Chroma as a vector database for long-term memory. 
-At the beginning of each new \texttt{chat(...)} invocation, 
-Bob automatically retrieves relevant past memory and includes it:
-
-\begin{verbatim}
-  mandatory_db = self.chroma_manager.get_chroma_instance(thread_id, "mandatory")
-  query_embedding = self.embedder.embed(message)
-  relevant_memory = self.chroma_manager.query_memory(mandatory_db, query_embedding, k=5)
-  
-  relevant_context = ""
-  if relevant_memory and "documents" in relevant_memory:
-      flattened_documents = [doc for sublist in relevant_memory["documents"] for doc in sublist]
-      relevant_context = "\n".join(flattened_documents)
-  
-  full_input = f"RELEVANT CONTEXT:\n{relevant_context}\nINPUT MESSAGE:\n{message}" if relevant_context else message
-  input_message = HumanMessage(content=full_input)
-  response_generator = self.app.stream({"messages": [input_message]}, config, stream_mode="updates")
-\end{verbatim}
+At the start of each conversation, Bob retrieves semantically 
+relevant past messages from Chroma, injects them into the LLM 
+context, and after responding, appends the new turn to the 
+vector memory for future retrieval.
 
 Moreover, Bob always stores the latest conversation turn in the vector memory afterwards.
 
@@ -238,14 +216,14 @@ To enable the agent to reason about \emph{when} something occurred, we inject a 
 current_utc_time = datetime.now(UTC).isoformat()
 message = f"Current Message at UTC Time: {current_utc_time}: {message}"
 \end{verbatim}
-This string becomes the content of \texttt{HumanMessage}, so Bob “sees” both the 
+This string becomes the content of \texttt{HumanMessage}, so Bob ``sees'' both the 
 literal message and a precise timestamp. Likewise, each summary operation archives:
 \begin{verbatim}
 current_utc_time = datetime.now(UTC).isoformat()
 new_summary = f"Summary Timestamp: {current_utc_time}: {response.content}"
 \end{verbatim}
 By explicitly labeling each piece of context with a timestamp, 
-we ensure the LLM can compare “2025-02-15” vs. “2025-05-25” 
+we ensure the LLM can compare ``2025-02-15'' vs. ``2025-05-25'' 
 when deciding which facts are stale. To encourage correct interpretation, 
 we add the following to our system prompt:
 \begin{quote}
@@ -494,7 +472,7 @@ in its final sentence below.
   file called \code{basic_agent.py}. If you are ever presented with 
   \code{basic_agent.py}, then be aware it is the file that defines 
   you as an agent. That file defines you as an agent: it is 
-  your very own source code. It works by calling an Open AI 
+  your very own source code. It works by calling an OpenAI 
   LLM, and that LLM is your brain. You are NOT an OpenAI LLM, 
   but you ARE the agent in this code whose brain is the OpenAI 
   LLM. Again, you are the agent in the code \code{basic_agent.py}, 
