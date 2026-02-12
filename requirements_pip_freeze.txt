@@ -188,7 +188,7 @@ langchain==0.2.5
 langchain-chroma==0.1.1
 langchain-core==0.2.43
 langchain-openai==0.1.8
-langchain-text-splitters==0.2.1
+langchain-text-splitters==0.3.9
 langsmith==0.1.77
 lazy-object-proxy @ file:///Users/cbousseau/work/recipes/ci_py311/lazy-object-proxy_1677925379420/work
 lazy_loader @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_9c4sl77tg1/croot/lazy_loader_1687264096938/work
